@@ -246,7 +246,9 @@ const KIEU = {
       let ok = 0, total = 0;
       $$('.qs>li', el).forEach(li => {
         const ans = X.nhom[li.dataset.k].cau[li.dataset.i][1];
-        const right = ans.includes($('select', li).value);
+        // Nhiều chỗ trống: nếu số đáp án bằng số chỗ trống thì chấm theo thứ tự, không thì mỗi ô chỉ cần là một đáp án đúng.
+        const vals = $$('select', li).map(s => s.value);
+        const right = vals.length > 1 && ans.length === vals.length ? vals.every((v, k) => v === ans[k]) : vals.every(v => ans.includes(v));
         ok += right; total++;
         li.classList.toggle('ok', right); li.classList.toggle('bad', !right);
         $('.fb', li).innerHTML = right ? '✓ Đúng' : `✗ Đáp án: <b class="zh">${ans.map(esc).join(' / ')}</b>`;

@@ -14,7 +14,7 @@ const SHELL = `<!doctype html>
 <title>Bài học</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Serif:wght@600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Ma+Shan+Zheng&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+SC:wght@500;700&family=Patrick+Hand&display=swap">
 <link rel="stylesheet" href="../khung/giao-an.css">
 </head>
 <body>
@@ -25,28 +25,102 @@ const SHELL = `<!doctype html>
 </html>
 `;
 
+/* l: mẫu đổi bố cục (khớp với html[data-mau] trong giao-an.css và .mini[data-l] trong soan-bai.html); không có l thì chỉ đổi màu. */
 const MAU = [
-  {id: 'ngoc', ten: 'Ngọc bích', mo: 'Xanh ngọc, gọn gàng, hợp mọi lớp.', bg: '#f4f7f5', fg: '#18221e', c: ['#16765b', '#bf3a29', '#e5b4ab']},
-  {id: 'son', ten: 'Son mực', mo: 'Nền giấy dó, chữ son đỏ, góc vuông kiểu thư pháp.', bg: '#f6f0e4', fg: '#9e2b1d', c: ['#9e2b1d', '#2f4a6d', '#e0b9a8']},
-  {id: 'bien', ten: 'Tươi sáng', mo: 'Xanh dương, bo tròn, hợp học sinh nhỏ tuổi.', bg: '#f2f6fc', fg: '#13203a', c: ['#1f5fd0', '#b45309', '#f0c48f']},
+  {id: 'sotay', l: 'sotay', ten: 'Sổ tay', mo: 'Giấy kẻ dòng, mục lục dọc bên trái, từ mới xếp thành danh sách như từ điển.', bg: '#fbf9f3', fg: '#2b59a6', c: ['#2b59a6', '#c2410c'], s: '#fffefa', rr: 1},
+  {id: 'the', l: 'the', ten: 'Thẻ học', mo: 'Ảnh bìa tràn màn hình, thẻ từ lớn có ảnh, hội thoại kiểu tin nhắn. Hợp học sinh nhỏ.', bg: '#fff7ef', fg: '#2a1840', c: ['#6d28d9', '#d6336c'], s: '#fff', rr: 6},
+  {id: 'tapchi', l: 'tapchi', ten: 'Tạp chí', mo: 'Chữ to kiểu báo, đề mục đánh số 01 02, từ mới chia hai cột như từ điển.', bg: '#f7f6f2', fg: '#141414', c: ['#b91c1c', '#44403c'], s: '#fff', rr: 0},
+  {id: 'bangden', l: 'bangden', ten: 'Bảng đen', mo: 'Nền bảng phấn, chữ viết tay, ô kẻ nét đứt. Hợp chiếu lên máy chiếu.', bg: '#1d3b30', fg: '#f3f1e7', c: ['#f6d76b', '#f6a5c0'], s: '#24493b', rr: 3},
+  {id: 'ngoc', ten: 'Ngọc bích', mo: 'Xanh ngọc, gọn gàng, hợp mọi lớp.', bg: '#f4f7f5', fg: '#18221e', c: ['#16765b', '#bf3a29'], s: '#fff', rr: 4},
+  {id: 'son', ten: 'Son mực', mo: 'Nền giấy dó, chữ son đỏ, góc vuông kiểu thư pháp.', bg: '#f6f0e4', fg: '#9e2b1d', c: ['#9e2b1d', '#2f4a6d'], s: '#fffaf0', rr: 1},
+  {id: 'bien', ten: 'Tươi sáng', mo: 'Xanh dương, bo tròn, hợp học sinh nhỏ tuổi.', bg: '#f2f6fc', fg: '#13203a', c: ['#1f5fd0', '#b45309'], s: '#fff', rr: 8},
 ];
+/* Mỗi loại bài tập: cột trong ô (cols, [tên, bắt buộc]), cách viết trong Word (word), ví dụ gõ trong ô (mau) và hình học sinh thấy (web). */
 const LOAI = {
   vitri: {ten: 'Chọn vị trí', tieude: 'Chọn vị trí đúng cho từ trong ngoặc',
-    fmt: 'Câu có các vị trí A B C D | Từ cần đặt | Đáp án (A, B, C hoặc D)', mau: 'A 中午 B 你 C 想吃 D？ | 什么 | D'},
+    cols: [['Câu có A B C D', 1], ['Từ cần đặt', 1], ['Đáp án: A, B, C hoặc D', 1]],
+    mau: '你 A 今天 B 漂亮 C 了 D！ | 太 | C',
+    word: '<p class="h">Bài 1: Chọn vị trí đúng cho từ trong ngoặc</p><p>1. 你 A 今天 B 漂亮 C 了 D！（太） <span class="red">Đáp án: C</span></p>',
+    web: '<div class="mk-sent">你 <i>A</i> 今天 <i>B</i> 漂亮 <i class="on">C</i> 了 <i>D</i>！ <em>(太)</em></div><span class="mk-btn">Kiểm tra</span>'},
   dien: {ten: 'Điền từ', tieude: 'Chọn từ điền vào chỗ trống',
-    fmt: 'Từ: từ 1, từ 2, từ 3   ← dòng mở đầu một nhóm từ để chọn\nCâu có chỗ trống ____ | Đáp án (nhiều đáp án đúng cách nhau bằng /)\nMuốn xuống dòng trong câu thì viết //', mau: 'Từ: 几, 多, 什么\n他家有____口人？ | 几'},
+    cols: [['Từ: từ 1, từ 2  ← dòng mở đầu nhóm từ', 0], ['Câu có ____', 1], ['Đáp án (đúng nhiều cách thì cách nhau /)', 1]],
+    mau: 'Từ: 都, 还是, 非常\n他们____不是韩国人。 | 都',
+    word: '<p class="h">Bài 2: Chọn từ điền vào chỗ trống</p><p>都 / 还是 / 非常</p><p>1. 他们 ______ 不是韩国人。 <span class="red">Đáp án: 都</span></p>',
+    web: '<div class="mk-tok"><span>都</span><span>还是</span><span>非常</span></div><div class="mk-sent">他们 <span class="mk-sel">都 ▾</span> 不是韩国人。</div>'},
   sapxep: {ten: 'Sắp xếp câu', tieude: 'Sắp xếp thành câu hoàn chỉnh',
-    fmt: 'Các từ cách nhau bằng dấu cách | Đáp án | Đáp án khác (nếu có)', mau: '你 做 爸爸 什么 工作 | 你爸爸做什么工作？'},
+    cols: [['Các từ cách nhau dấu cách', 1], ['Đáp án', 1], ['Đáp án khác', 0]],
+    mau: '电影院 在 我 电影 看 | 我在电影院看电影。',
+    word: '<p class="h">Bài 3: Sắp xếp câu</p><p>1. 电影院 / 在 / 我 / 电影 / 看</p><p class="red">Đáp án: 我在电影院看电影。</p>',
+    web: '<div class="mk-tok ans"><span>我</span><span>在</span></div><div class="mk-tok"><span>电影院</span><span class="off">在</span><span class="off">我</span><span>电影</span><span>看</span></div>'},
   tracnghiem: {ten: 'Trắc nghiệm', tieude: 'Đọc và chọn đáp án đúng',
-    fmt: 'Đoạn: đoạn văn để đọc (không bắt buộc)\nCâu hỏi | Lựa chọn A | B | *C | D   ← dấu * đánh dấu đáp án đúng', mau: 'Đoạn: 我家有四口人。\n“我”家有几口人？ | 三 | *四 | 五 | 六'},
+    cols: [['Đoạn: đoạn văn  ← không bắt buộc', 0], ['Câu hỏi', 1], ['A', 1], ['B', 1], ['*C  ← dấu * là đáp án đúng', 1], ['D', 0]],
+    mau: 'Đoạn: 今天晚上他请我们去四川饭店吃饭。\n他们去哪儿吃饭？ | 北京饭店 | 电影院 | *四川饭店 | 咖啡店',
+    word: '<p class="h">Bài 4: Đọc và chọn đáp án đúng</p><p>今天晚上他请我们去四川饭店吃饭。</p><p>1. 他们去哪儿吃饭？</p><p>A. 北京饭店</p><p>B. 电影院</p><p><b>C. 四川饭店</b> <span class="red">← in đậm</span></p><p>D. 咖啡店</p>',
+    web: '<div class="mk-pass">今天晚上他请我们去四川饭店吃饭。</div><div class="zh">他们去哪儿吃饭？</div><div class="mk-opts"><span>A. 北京饭店</span><span>B. 电影院</span><span class="on">C. 四川饭店</span><span>D. 咖啡店</span></div>'},
   tuluan: {ten: 'Đọc và trả lời', tieude: 'Đọc và trả lời câu hỏi',
-    fmt: 'Đoạn: đoạn văn để đọc\nCâu hỏi | Gợi ý đáp án', mau: 'Đoạn: 我是大学生。\n“我”做什么工作？ | 我是大学生。'},
+    cols: [['Đoạn: đoạn văn  ← không bắt buộc', 0], ['Câu hỏi', 1], ['Gợi ý đáp án', 0]],
+    mau: 'Đoạn: 小明和欧文明天坐地铁去电影院。\n他们怎么去电影院？ | 他们坐地铁去。',
+    word: '<p class="h">Bài 5: Đọc và trả lời câu hỏi</p><p>1. 小明和欧文明天坐地铁去电影院。</p><p>★ 他们怎么去电影院？</p><p class="red">Đáp án: 他们坐地铁去。</p>',
+    web: '<div class="mk-pass">小明和欧文明天坐地铁去电影院。</div><div class="zh">他们怎么去电影院？</div><div class="mk-card" style="min-height:22px"></div><span class="mk-btn o">Xem đáp án</span>'},
 };
-const guessLoai = t => /vị trí/i.test(t) ? 'vitri' : /điền|chỗ trống/i.test(t) ? 'dien' : /sắp xếp/i.test(t) ? 'sapxep'
+const guessLoai = t => /vị trí/i.test(t) ? 'vitri' : /điền|chỗ trống|hoàn thành|hoàn thiện/i.test(t) ? 'dien' : /sắp xếp/i.test(t) ? 'sapxep'
   : /trắc nghiệm|đáp án đúng|chọn đáp án/i.test(t) ? 'tracnghiem' : 'tuluan';
+const colsHtml = cols => `<div class="cols">${cols.map(([t, r]) => `<span${r ? ' class="req"' : ''}>${esc(t)}</span>`).join('<i>|</i>')}</div>`;
+const codeHtml = s => esc(s).replace(/ \| /g, ' <b>|</b> ');
+
+/* Ví dụ cho từng loại file ở mục 1: trang Word/slide bên trái → màn hình học sinh bên phải. */
+const DEMO = {
+  baitap: {
+    a: 'File Word của thầy cô', b: 'Học sinh thấy trên điện thoại',
+    paper: `<p class="gray">Họ và tên: ........ Lớp: ......</p><p class="h1" style="text-align:center">BÀI TẬP</p>
+      <p class="h">Bài 1: Chọn vị trí đúng cho từ trong ngoặc</p><p>1. 你 A 今天 B 漂亮 C 了 D！（太） <span class="red">Đáp án: C</span></p>
+      <p class="h">Bài 2: Sắp xếp câu</p><p>1. 电影院 / 在 / 我 / 电影 / 看</p><p class="gray">______________________</p><p class="red">Đáp án: 我在电影院看电影。</p>
+      <p class="h">Bài 3: Đọc và chọn đáp án đúng</p><p>1. 他们去哪儿吃饭？</p><p>A. 北京饭店 &nbsp; B. 电影院</p><p><b>C. 四川饭店</b> &nbsp; D. 咖啡店</p>`,
+    web: `<div class="mk-h">Bài 1. Chọn vị trí đúng…</div><div class="mk-sent">你 <i>A</i> 今天 <i>B</i> 漂亮 <i class="on">C</i> 了 <i>D</i>！ <em>(太)</em></div>
+      <div class="mk-h">Bài 2. Sắp xếp câu</div><div class="mk-tok ans"><span>我</span><span>在</span></div><div class="mk-tok"><span>电影院</span><span class="off">在</span><span class="off">我</span><span>电影</span><span>看</span></div>
+      <div class="mk-h">Bài 3. Đọc và chọn đáp án đúng</div><div class="mk-opts"><span>A. 北京饭店</span><span>B. 电影院</span><span class="on">C. 四川饭店</span><span>D. 咖啡店</span></div>
+      <div><span class="mk-btn">Kiểm tra</span> <span class="mk-ok">Đúng 3/3</span></div>`,
+    tips: ['Mỗi bài mở đầu bằng dòng <b>Bài 1: …</b>. Tên bài quyết định loại: có chữ <b>vị trí</b>, <b>điền / chỗ trống</b>, <b>sắp xếp</b>, <b>chọn đáp án</b>; còn lại là bài tự trả lời.',
+      'Ghi đáp án bằng <b>Đáp án: …</b> ở cuối câu hoặc dòng ngay dưới. Trắc nghiệm thì <b>in đậm</b> lựa chọn đúng.',
+      'Chưa có đáp án vẫn nạp được: câu nào thiếu sẽ báo vàng ở mục 8 để điền thêm.',
+      'Dòng kẻ ____ để học sinh viết và dòng “Họ và tên, Lớp” được tự bỏ qua.'],
+    dl: [['khung/mau-bai-tap.docx', 'Tải phiếu bài tập mẫu (.docx)']]},
+  giaoan: {
+    a: 'File Word theo mẫu', b: 'Thành trang bài học',
+    paper: `<p class="h1">Thông tin bài</p><table><tr><td>Số bài</td><td>10</td></tr><tr><td>Tên bài</td><td>你家有几口人？</td></tr><tr><td>Giao diện</td><td>Thẻ học</td></tr></table>
+      <p class="h1">Từ mới</p><table><tr><th>Chữ Hán</th><th>Pinyin</th><th>Từ loại</th><th>Nghĩa</th><th>…</th></tr><tr><td>爸爸</td><td>bàba</td><td>danh từ</td><td>bố, ba</td><td>…</td></tr></table>
+      <p class="h1">Hội thoại</p><p>A：你家有几口人？</p><p>B：我家有五口人。</p>`,
+    web: `<div class="mk-mute" style="font-size:9px;letter-spacing:.1em;color:var(--seal)">BÀI 10 · HSK 1</div><div class="zh" style="font-size:20px;font-weight:700;line-height:1.1">你家有几口人？</div>
+      <div class="mk-card"><div class="mk-row"><div class="mk-cells"><span>爸</span><span>爸</span></div><i class="mk-img"></i></div><div class="mk-py">bàba<span class="mk-pos">danh từ</span></div><b>bố, ba</b></div>
+      <div class="mk-line"><span class="mk-who">A</span><span class="zh">你家有几口人？</span></div>`,
+    tips: ['Giữ đúng tên các đề mục: <b>Thông tin bài, Mục tiêu, Tiến trình, Từ mới, Cách viết, Ngữ pháp, Hội thoại, Bài tập</b>. Mục nào không có thì xóa cả đề mục.',
+      'Bảng giữ đúng thứ tự cột như file mẫu; hàng tiêu đề được tự bỏ qua; thêm bớt dòng thoải mái.',
+      'Ô “Giao diện” ghi tên mẫu, vd. <b>Thẻ học</b>, <b>Sổ tay</b>, <b>Tạp chí</b>, <b>Bảng đen</b>.'],
+    dl: [['khung/mau-soan-bai.docx', 'Tải giáo án mẫu (.docx)']]},
+  slide: {
+    a: 'Slide .pptx', b: 'Ảnh được tách ra ở mục 9',
+    paper: `<div class="slides"><div class="slide"><i>ảnh</i><i class="gif">爸</i><span>trang 2</span></div><div class="slide"><i>ảnh</i><i>ảnh</i><span>trang 3</span></div></div>`,
+    web: `<div class="mk-gal"><span class="on"><i></i>s02_1.jpg</span><span><i class="gif">爸</i>s02_2.gif</span><span><i></i>s03_1.jpg</span><span><i></i>s03_2.jpg</span></div>
+      <div class="mk-mute">Trên mục lục có nút</div><span class="mk-btn o">Thuyết trình</span>`,
+    tips: ['<b>.pptx</b>: mọi ảnh trong slide được tách ra và đặt tên theo trang: <b>s02_1.jpg</b> là trang 2, ảnh thứ 1. Ảnh động .gif (thứ tự nét) dùng ở mục Cách viết.',
+      '<b>.pdf</b> (slide đã xuất ra PDF): dùng làm bài thuyết trình, không tách được ảnh. Muốn lấy ảnh thì nạp file .pptx gốc.',
+      'Slide được lưu kèm bài, học sinh mở bằng nút <b>Thuyết trình</b> ở trang mục lục.']},
+  anh: {
+    a: 'Ảnh trong máy', b: 'Gắn vào thẻ từ',
+    paper: `<div class="files"><div><i></i>ba-me.jpg</div><div><i></i>con-cho.png</div><div><i style="background:#fff;border:1px solid #e5b4ab"></i>but-thuan-ba.gif</div></div>`,
+    web: `<div class="mk-card"><div class="mk-row"><div class="mk-cells"><span>狗</span></div><i class="mk-img"></i></div><div class="mk-py">gǒu<span class="mk-pos">danh từ</span></div><b>con chó</b></div>`,
+    tips: ['Ảnh lớn được tự thu nhỏ cho nhẹ. Tên có dấu cách được đổi thành gạch nối.',
+      'Bấm ảnh ở mục 9 để chép tên, dán vào cột <b>Ảnh</b> của từ mới (vd. <code>狗 | gǒu | danh từ | con chó | | | | | con-cho.png</code>).']},
+};
+const VD = {
+  tientrinh: '5′ | **Khởi động.** Chiếu ảnh gia đình, hỏi 这是谁？\n15′ | **Từ mới.** Dạy theo 4 nhóm.',
+  tumoi: '爸爸 | bàba | danh từ | bố, ba | Gia đình | 我爸爸是老师。 | Wǒ bàba shì lǎoshī. | Bố tôi là giáo viên.',
+  nguphap: '几口人 | Hỏi số người trong gia đình | 你家有几口人？ → 我家有 + số + 口人。 | 你家有几口人？ = Nhà bạn có mấy người?; 我家有四口人。 = Nhà tôi có bốn người. | **几** hỏi số lượng nhỏ.',
+  hoithoai: 'A | 你家有几口人？ | Nǐ jiā yǒu jǐ kǒu rén? | Nhà bạn có mấy người?\nB | 我家有五口人。 | Wǒ jiā yǒu wǔ kǒu rén. | Nhà mình có năm người.',
+};
 
 /* ---------- state ---------- */
-const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: ''};
+const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: '', demo: 'baitap', luu: false};
 const IMG = new Map();   // tên ảnh → {url, blob} cho ảnh vừa nạp
 let dirty = false;
 
@@ -69,7 +143,8 @@ const PX = {
   vitri(t, w) {
     return {cau: L(t).map((l, i) => {
       const c = C(l), a = (c[2] || '').toUpperCase();
-      if (!/^[ABCD]$/.test(a)) w.push(`Dòng ${i + 1}: đáp án phải là A, B, C hoặc D.`);
+      if (!a) w.push(`Dòng ${i + 1}: chưa có đáp án, thêm “| A” (hoặc B, C, D) vào cuối dòng.`);
+      else if (!/^[ABCD]$/.test(a)) w.push(`Dòng ${i + 1}: đáp án phải là A, B, C hoặc D.`);
       else if (!new RegExp(`\\b${a}\\b`).test(c[0])) w.push(`Dòng ${i + 1}: trong câu chưa có vị trí ${a}.`);
       return [c[0], c[1] || '', a];
     })};
@@ -112,7 +187,7 @@ const PX = {
   tuluan(t) {
     const doan = []; let cur = null;
     L(t).forEach(l => {
-      if (doanRe.test(l)) { cur = {van: l.replace(doanRe, ''), hoi: []}; doan.push(cur); return; }
+      if (doanRe.test(l)) { cur = {van: nl(l.replace(doanRe, '')), hoi: []}; doan.push(cur); return; }
       if (!cur) { cur = {van: '', hoi: []}; doan.push(cur); }
       const c = C(l); cur.hoi.push([c[0], c[1] || '']);
     });
@@ -124,7 +199,7 @@ const FX = {
   dien: X => X.nhom.map(n => (n.tu.length ? `Từ: ${n.tu.join(', ')}\n` : '') + n.cau.map(([s, a]) => J([unnl(s), a.join(' / ')])).join('\n')).join('\n'),
   sapxep: X => X.cau.map(([t, a]) => J([t.join(' '), ...a])).join('\n'),
   tracnghiem: X => (X.doan ? `Đoạn: ${X.doan.replace(/\n/g, ' ')}\n` : '') + X.cau.map(([q, o, a]) => J([q, ...o.map((x, k) => k === a ? '*' + x : x)])).join('\n'),
-  tuluan: X => X.doan.map(p => (p.van ? `Đoạn: ${p.van}\n` : '') + p.hoi.map(h => J(h)).join('\n')).join('\n'),
+  tuluan: X => X.doan.map(p => (p.van ? `Đoạn: ${unnl(p.van)}\n` : '') + p.hoi.map(h => J(h)).join('\n')).join('\n'),
 };
 
 const val = id => $('#' + id).value.trim();
@@ -167,7 +242,7 @@ function model() {
   const B = {
     so, dir, mau: S.mau, cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
     gioithieu: val('gioithieu'), anhbia: $('#anhbia').value,
-    slide: S.slideFile ? `${dir}-slide.pptx` : S.slideName,
+    slide: S.slideFile ? `${dir}-slide.${S.slideFile.name.split('.').pop().toLowerCase()}` : S.slideName,
     muctieu: {kienthuc: L(val('kienthuc')), nangluc: L(val('nangluc')), phamchat: L(val('phamchat'))},
     tientrinh: {tieude: val('tt-tieude'), buoc: L(val('tientrinh')).map(l => { const c = C(l); return c.length > 1 ? [c[0], c.slice(1).join(' | ')] : ['', c[0]]; })},
     tumoi, cachviet, nguphap,
@@ -200,17 +275,23 @@ let tPrev;
 function changed() { dirty = true; clearTimeout(tPrev); tPrev = setTimeout(render, 400); }
 function render() {
   const [B, W] = model();
-  ['tumoi', 'nguphap', 'hoithoai'].forEach(k => $('#w-' + k).innerHTML = W[k].slice(0, 6).map(x => `<div>${esc(x)}</div>`).join('') + (W[k].length > 6 ? `<div>… và ${W[k].length - 6} lỗi khác</div>` : ''));
-  $$('#exs .exi').forEach((el, i) => $('.warns', el).innerHTML = (W.ex[i] || []).slice(0, 6).map(x => `<div>${esc(x)}</div>`).join(''));
+  const warnList = (list, max = 6) => list.slice(0, max).map(x => `<div>${esc(x)}</div>`).join('') + (list.length > max ? `<div>… và ${list.length - max} chỗ khác</div>` : '');
+  ['tumoi', 'nguphap', 'hoithoai'].forEach(k => $('#w-' + k).innerHTML = warnList(W[k]));
+  $$('#exs .exi').forEach((el, i) => $('.warns', el).innerHTML = warnList(W.ex[i] || []));
+  const exW = W.ex.reduce((n, w) => n + (w ? w.length : 0), 0);
+  const cnt = (id, txt, warn) => { const c = $('#c-' + id); c.textContent = [txt, warn && `${warn} chỗ cần xem`].filter(Boolean).join(' · '); c.classList.toggle('warn', !!warn); };
   const mtN = ['kienthuc', 'nangluc', 'phamchat'].reduce((n, k) => n + B.muctieu[k].length, 0);
-  $('#c-muctieu').textContent = mtN ? `${mtN} ý · ${B.tientrinh.buoc.length} bước` : '';
-  $('#c-tumoi').textContent = B.tumoi.length ? `${B.tumoi.length} từ` : '';
-  $('#c-nguphap').textContent = B.nguphap.length ? `${B.nguphap.length} điểm` : '';
-  $('#c-hoithoai').textContent = B.hoithoai.cau.length ? `${B.hoithoai.cau.length} câu` : '';
-  $('#c-baitap').textContent = S.exs.length ? `${S.exs.length} bài` : '';
+  cnt('muctieu', mtN ? `${mtN} ý · ${B.tientrinh.buoc.length} bước` : '');
+  cnt('tumoi', B.tumoi.length ? `${B.tumoi.length} từ` : '', W.tumoi.length);
+  cnt('nguphap', B.nguphap.length ? `${B.nguphap.length} điểm` : '', W.nguphap.length);
+  cnt('hoithoai', B.hoithoai.cau.length ? `${B.hoithoai.cau.length} câu` : '', W.hoithoai.length);
+  cnt('baitap', S.exs.length ? `${S.exs.length} bài` : '', exW);
+  const mau = MAU.find(m => m.id === S.mau) || MAU[0];
+  $('#c-mau').textContent = mau.ten; $('#pvMau').textContent = mau.ten;
   $('#slideInfo').value = S.slideFile ? `${S.slideFile.name} (lưu thành ${B.slide})` : S.slideName;
   const used = usedImgs(B);
   $$('#gallery button').forEach(b => b.classList.toggle('used', used.has(b.dataset.n)));
+  drawSteps(B, [['box-tumoi', W.tumoi.length], ['box-nguphap', W.nguphap.length], ['box-hoithoai', W.hoithoai.length], ['box-baitap', exW]], mau);
   saveDraft(B);
 
   const map = {}; IMG.forEach((v, k) => map[k] = v.url);
@@ -220,12 +301,36 @@ function render() {
   let y = 0; try { y = f.contentWindow.scrollY; } catch {}
   f.onload = () => { try { f.contentWindow.scrollTo(0, y); } catch {} };
   f.srcdoc = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Serif:wght@600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Ma+Shan+Zheng&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+SC:wght@500;700&family=Patrick+Hand&display=swap">
 <link rel="stylesheet" href="${BASE}khung/giao-an.css"></head><body>
 <script>window.XEM_TRUOC=1;window.ANH_MAP=${js(map)};window.ANH_GOC=${js(goc)};window.BAI=${js({...B, ten: B.ten || '(Chưa có tên bài)', so: B.so || '?'})};<\/script>
 <script src="${BASE}khung/lib/qrcode.min.js"><\/script><script src="${BASE}khung/giao-an.js"><\/script></body></html>`;
 }
 $$('.ph [data-size]').forEach(b => b.addEventListener('click', () => $('#preview').classList.toggle('phone', b.dataset.size === 'phone')));
+
+/* ---------- 4 bước ở đầu trang ---------- */
+function go(id) {
+  const box = document.getElementById(id); if (!box) return;
+  box.open = true; box.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function drawSteps(B, warns, mau) {
+  const step = (s, done, todo, small, goTo) => {
+    const li = $(`#steps [data-s="${s}"]`);
+    li.classList.toggle('done', done); li.classList.toggle('todo', todo);
+    if (small != null) $('small', li).textContent = small;
+    if (goTo != null) $('button', li).dataset.go = goTo;
+  };
+  const has = [B.tumoi.length && `${B.tumoi.length} từ`, B.nguphap.length && `${B.nguphap.length} ngữ pháp`, B.hoithoai.cau.length && 'hội thoại', S.exs.length && `${S.exs.length} bài tập`].filter(Boolean);
+  step('nap', has.length > 0, false, has.length ? 'Đã có: ' + has.join(', ') : 'Word, slide hoặc ảnh');
+  step('mau', true, false, mau.ten);
+  const bad = warns.filter(([, n]) => n), total = bad.reduce((n, [, k]) => n + k, 0);
+  step('xem', has.length > 0 && !total, total > 0, total ? `${total} chỗ cần xem, bấm để tới` : has.length ? 'Không thấy lỗi' : 'Ô vàng là chỗ cần sửa', bad.length ? bad[0][0] : 'box-info');
+  step('luu', S.luu && !dirty, false, S.luu && !dirty ? 'Đã lưu' : 'Chưa lưu');
+}
+$('#steps').addEventListener('click', e => {
+  const b = e.target.closest('[data-go]'); if (!b) return;
+  if (b.dataset.go === 'save') $('#save').click(); else go(b.dataset.go);
+});
 
 /* ---------- draft ---------- */
 function saveDraft(B) {
@@ -236,16 +341,25 @@ function readDraft() {
 }
 
 /* ---------- themes ---------- */
+/* Hình thu nhỏ vẽ bố cục của mẫu (đầu bài, ảnh, thanh mục lục, các thẻ), không chỉ bảng màu. */
+const mini = m => `<div class="mini"${m.l ? ` data-l="${m.l}"` : ''} style="--bg:${m.bg};--fg:${m.fg};--p:${m.c[0]};--a:${m.c[1]};--s:${m.s};--rr:${m.rr}px" aria-hidden="true"><b>你好</b><i class="img"></i><i class="nav"></i>${'<i class="k"></i>'.repeat(4)}</div>`;
 function drawThemes() {
   $('#themes').innerHTML = MAU.map(m => `<label class="theme"><input type="radio" name="mau" value="${m.id}"${m.id === S.mau ? ' checked' : ''}>
-    <div class="sw" style="background:${m.bg};color:${m.fg}"><b>你好</b><i>${m.c.map(c => `<span style="background:${c}"></span>`).join('')}</i></div>
+    ${mini(m)}<span class="kind${m.l ? ' bo' : ''}">${m.l ? 'Đổi bố cục' : 'Đổi màu'}</span>
     <strong>${m.ten}</strong><small>${m.mo}</small></label>`).join('');
 }
 $('#themes').addEventListener('change', e => { S.mau = e.target.value; changed(); });
 
 /* ---------- exercises ---------- */
+const demoEx = (l, open) => `<details class="vd"${open ? ' open' : ''}><summary>Cách soạn bài “${l.ten}”</summary><div class="in">
+  <div class="trio">
+    <figure><figcaption>Trong file Word</figcaption><div class="paper">${l.word}</div></figure>
+    <figure><figcaption>Hoặc gõ trong ô</figcaption><pre class="code">${codeHtml(l.mau)}</pre></figure>
+    <figure><figcaption>Học sinh thấy</figcaption><div class="screen">${l.web}</div></figure>
+  </div>
+  <div><button class="btn sm" data-act="vd">Chèn ví dụ vào ô</button></div></div></details>`;
 function drawExs() {
-  $('#exs').innerHTML = S.exs.map((x, i) => `<div class="exi" data-i="${i}">
+  $('#exs').innerHTML = S.exs.length ? S.exs.map((x, i) => `<div class="exi" data-i="${i}">
     <div class="hd"><b>Bài ${i + 1}</b>
       <select data-k="loai" aria-label="Loại bài tập">${Object.entries(LOAI).map(([k, l]) => `<option value="${k}"${k === x.loai ? ' selected' : ''}>${l.ten}</option>`).join('')}</select>
       <input data-k="tieude" value="${esc(x.tieude)}" placeholder="${esc(LOAI[x.loai].tieude)}" aria-label="Tiêu đề bài tập">
@@ -253,12 +367,13 @@ function drawExs() {
       <button class="btn sm" data-act="down" aria-label="Chuyển xuống"${i < S.exs.length - 1 ? '' : ' disabled'}>↓</button>
       <button class="btn sm danger" data-act="del">Xóa</button>
     </div>
-    <span class="fmt">${esc(LOAI[x.loai].fmt)}</span>
+    ${colsHtml(LOAI[x.loai].cols)}
     <textarea data-k="text" placeholder="${esc(LOAI[x.loai].mau)}" aria-label="Nội dung bài ${i + 1}">${esc(x.text)}</textarea>
     <div class="warns"></div>
-  </div>`).join('');
+    ${demoEx(LOAI[x.loai], !x.text.trim())}
+  </div>`).join('') : '<p class="hint">Chưa có bài tập. Nạp phiếu bài tập Word ở mục 1, hoặc bấm một loại bên dưới để thêm.</p>';
 }
-$('#addEx').innerHTML = Object.entries(LOAI).map(([k, l]) => `<button class="btn sm" data-loai="${k}">+ ${l.ten}</button>`).join('');
+$('#addEx').innerHTML = Object.entries(LOAI).map(([k, l]) => `<button data-loai="${k}"><b>+ ${l.ten}</b><div class="screen" style="border-width:1px;min-height:0">${l.web}</div></button>`).join('');
 $('#addEx').addEventListener('click', e => {
   const b = e.target.closest('[data-loai]'); if (!b) return;
   S.exs.push({loai: b.dataset.loai, tieude: '', text: ''});
@@ -275,6 +390,11 @@ $('#exs').addEventListener('input', e => {
 $('#exs').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const i = +b.closest('.exi').dataset.i, a = b.dataset.act;
+  if (a === 'vd') {
+    const ta = $('textarea', b.closest('.exi')), mau = LOAI[S.exs[i].loai].mau;
+    S.exs[i].text = ta.value = ta.value.trim() ? ta.value.replace(/\n*$/, '\n') + mau : mau;
+    ta.focus(); changed(); return;
+  }
   if (a === 'del') { if (S.exs[i].text.trim() && !confirm(`Xóa Bài ${i + 1}?`)) return; S.exs.splice(i, 1); }
   else { const j = a === 'up' ? i - 1 : i + 1; [S.exs[i], S.exs[j]] = [S.exs[j], S.exs[i]]; }
   drawExs(); changed();
@@ -318,17 +438,37 @@ async function addImage(name, blob) {
 }
 
 /* ---------- import ---------- */
-const log = (msg, cls = 'ok') => $('#log').insertAdjacentHTML('beforeend', `<div class="${cls}">${esc(msg)}</div>`);
+/* Mỗi file nạp vào có một thẻ kết quả: nhận ra được gì, còn thiếu gì, bấm để tới đúng mục. */
+const TAG = {docx: ['w', 'Word'], pptx: ['p', 'PPT'], pdf: ['d', 'PDF']};
+function logFile(name, items) {
+  const [c, t] = TAG[name.split('.').pop().toLowerCase()] || ['i', 'Ảnh'];
+  $('#log').insertAdjacentHTML('beforeend', `<div class="res"><div class="rh"><span class="tag ${c}">${t}</span><b>${esc(name)}</b></div>
+    <ul>${items.map(x => `<li class="${x.cls || ''}">${x.go ? `<a data-go="${x.go}" tabindex="0">${esc(x.t)}</a>` : esc(x.t)}</li>`).join('')}</ul></div>`);
+}
+$('#log').addEventListener('click', e => { const a = e.target.closest('[data-go]'); if (a) go(a.dataset.go); });
+$('#log').addEventListener('keydown', e => { const a = e.target.closest('[data-go]'); if (a && e.key === 'Enter') go(a.dataset.go); });
+
 async function nap(files) {
   $('#log').innerHTML = '';
+  const imgs = [];
   for (const f of files) {
     const ext = f.name.split('.').pop().toLowerCase();
     try {
-      if (ext === 'docx') await napWord(f);
-      else if (ext === 'pptx') await napSlide(f);
-      else if (MIME[ext]) { const n = await addImage(f.name, f); log(`Đã thêm ảnh ${n}.`); }
-      else log(`Bỏ qua ${f.name}: chỉ nhận .docx, .pptx hoặc ảnh.`, 'err');
-    } catch (e) { log(`Không đọc được ${f.name}: ${e.message || e}`, 'err'); }
+      if (ext === 'docx') { await napWord(f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
+      else if (ext === 'pptx') { await napSlide(f); showDemo('slide'); }
+      else if (ext === 'pdf') {
+        S.slideFile = f; showDemo('slide');
+        logFile(f.name, [{t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'},
+          {t: 'File PDF không tách được ảnh. Muốn có ảnh cho thẻ từ, hãy nạp thêm file .pptx gốc.', cls: 'warn'}]);
+      }
+      else if (MIME[ext]) imgs.push(await addImage(f.name, f));
+      else logFile(f.name, [{t: 'Bỏ qua: chỉ nhận .docx, .pptx, .pdf hoặc ảnh.', cls: 'err'}]);
+    } catch (e) { logFile(f.name, [{t: `Không đọc được file: ${e.message || e}`, cls: 'err'}]); }
+  }
+  if (imgs.length) {
+    logFile(imgs.length > 1 ? `${imgs.length} ảnh` : imgs[0], [{t: `Đã thêm vào mục 9: ${imgs.join(', ')}`, go: 'box-anh'},
+      {t: 'Bấm ảnh để chép tên, rồi dán vào cột “Ảnh” của từ mới.'}]);
+    showDemo('anh');
   }
   drawGallery(); render();
 }
@@ -336,7 +476,7 @@ async function napSlide(file) {
   const zip = await JSZip.loadAsync(file);
   const num = n => +n.match(/(\d+)\.xml/)[1];
   const slides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => num(a) - num(b));
-  let count = 0;
+  let count = 0, gif = 0;
   for (const s of slides) {
     const n = num(s), rel = zip.file(`ppt/slides/_rels/slide${n}.xml.rels`); if (!rel) continue;
     const xml = new DOMParser().parseFromString(await rel.async('string'), 'application/xml');
@@ -350,12 +490,13 @@ async function napSlide(file) {
       const path = t.startsWith('/') ? t.slice(1) : 'ppt/' + t.replace(/^\.\.\//, '');
       const ext = path.split('.').pop().toLowerCase(), f = zip.file(path);
       if (!f || !MIME[ext]) continue;
-      k++; count++;
+      k++; count++; gif += ext === 'gif';
       await addImage(`s${String(n).padStart(2, '0')}_${k}.${ext}`, new Blob([await f.async('uint8array')], {type: MIME[ext]}));
     }
   }
   S.slideFile = file;
-  log(`Slide “${file.name}”: ${slides.length} trang, lấy được ${count} ảnh. Slide sẽ dùng cho nút Thuyết trình.`);
+  logFile(file.name, [{t: `${slides.length} trang, tách được ${count} ảnh${gif ? ` (${gif} ảnh động .gif, thường là thứ tự nét)` : ''}.`, go: 'box-anh', cls: count ? '' : 'warn'},
+    {t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'}]);
 }
 
 /* Word: các đề mục (Thông tin, Mục tiêu, Tiến trình, Từ mới, Cách viết, Ngữ pháp, Hội thoại, Bài 1. …) chia phần;
@@ -363,13 +504,119 @@ async function napSlide(file) {
 const SEC = [
   ['info', /^thông tin/i], ['muctieu', /^mục tiêu/i], ['tientrinh', /^(tiến trình|các bước lên lớp|hoạt động dạy)/i],
   ['tumoi', /^(từ mới|từ vựng|生词)/i], ['cachviet', /^(cách viết|thứ tự nét)/i], ['nguphap', /^(ngữ pháp|语法|mẫu câu)/i],
-  ['hoithoai', /^(hội thoại|会话|对话|课文)/i], ['baitap', /^(bài tập|luyện tập|练习)\s*$/i],
+  ['hoithoai', /^(hội thoại|会话|对话|课文)/i], ['baitap', /^(bài tập|luyện tập|练习)\s*$/i], ['bo', /^(đáp án|answer key)\s*$/i],
 ];
 const SUB = [['kienthuc', /^kiến thức\s*[:：]?\s*/i], ['nangluc', /^(năng lực|kỹ năng|kĩ năng)\s*[:：]?\s*/i], ['phamchat', /^(phẩm chất|thái độ)\s*[:：]?\s*/i]];
 const INFO = [['so', /số bài|bài số/i], ['ten', /tên bài|tiêu đề/i], ['pinyin', /pinyin|phiên âm/i], ['nghia', /nghĩa|dịch/i],
   ['cap', /cấp|trình độ|lớp/i], ['gioithieu', /giới thiệu|mô tả/i], ['mau', /mẫu|giao diện/i], ['anhbia', /ảnh bìa/i]];
 const HEAD_RE = /^(stt|chữ hán|hán tự|từ|pinyin|phiên âm|từ loại|nghĩa|nhóm|ví dụ|ảnh|thời gian|nội dung|người nói|nhân vật|câu|mẫu câu|ghi chú|điểm ngữ pháp|ý nghĩa|đáp án|lựa chọn|câu hỏi|gợi ý|hoạt động)(?!\p{L})/iu;
 const CJK = /[㐀-鿿]/;
+
+/* Phiếu bài tập soạn tự do (như "bài 8 D57.docx"): đổi từng dòng sang dạng "cột | cột" của ô bài tập.
+   Dòng đã có dấu | thì giữ nguyên. In đậm được đánh dấu bằng ** khi đọc file. */
+const bo = s => s.replace(/\*\*/g, '');
+const RAC = /^[\s_＿.…·\-–—]*$|^(họ (và )?tên|lớp|ngày|điểm)\s*[:：]/i;   // dòng kẻ để viết, dòng họ tên
+const SO = /^\s*\d+\s*[.)、．:]\s*/;                                        // "1. " ở đầu câu
+const DA = /\s*(?:đáp án|đ\/a)\s*[:：]\s*(.*)$/i;
+const OPT = /^([A-F])\s*[.、．:)）]\s*(.*)$/;
+const CHO = /_{2,}|＿{2,}|…{2,}|\.{4,}|（\s*）|\(\s*\)/;
+const LUOT = /^\S{1,6}[:：]/;                                               // "A：…" một lượt thoại
+const dapAn = s => { const m = s.match(DA); return m ? [s.slice(0, m.index).trim(), m[1].trim()] : [s.trim(), '']; };
+const TU_DO = {
+  vitri(ls) {
+    const out = [];
+    ls.forEach(l => {
+      const [s, a] = dapAn(bo(l).replace(SO, ''));
+      const m = s.match(/[（(]\s*([^（）()]+?)\s*[）)]\s*[。.]?$/);
+      if (m && /\b[A-D]\b/.test(s)) out.push([s.slice(0, m.index).trim(), m[1], a.toUpperCase()]);
+      else if (!s && a && out.length) out[out.length - 1][2] = a.toUpperCase();
+    });
+    return out;
+  },
+  dien(ls) {
+    const out = []; let ctx = [];   // ctx: các câu dẫn không có chỗ trống (vd. lượt thoại trước), ghép vào câu điền ngay sau
+    ls.forEach(l => {
+      const [s, a] = dapAn(bo(l).replace(SO, ''));
+      const da = a.split(/\s*[,，、;；\/]\s*/).filter(Boolean).join(' / ');
+      const last = out.findLast(x => Array.isArray(x));
+      if (!s) { if (last && da) last[1] = da; return; }
+      if (CHO.test(s)) { out.push([[...ctx, s.replace(new RegExp(`\\s*(?:${CHO.source})\\s*`, 'g'), '____')].join(' // '), da]); ctx = []; return; }
+      const tu = s.replace(/^từ\s*[:：]\s*/i, '').split(/\s*[\/,，、;；]\s*|\s{2,}/).filter(Boolean);
+      if (tu.length > 1 && tu.every(t => t.length <= 8)) { out.push('Từ: ' + tu.join(', ')); ctx = []; }
+      else if (!CJK.test(s)) return;
+      else if (LUOT.test(s) && last && out[out.length - 1] === last && !ctx.length && LUOT.test(last[0].split(' // ').pop())) last[0] += ' // ' + s;   // lượt thoại nối tiếp câu điền
+      else ctx.push(s);
+    });
+    return out;
+  },
+  sapxep(ls) {
+    const out = [];
+    ls.forEach(l => {
+      const [s, a] = dapAn(bo(l).replace(SO, ''));
+      if (!s) { if (a && out.length) out[out.length - 1][1] = a; return; }
+      let toks = s.split(/\s*[\/／]\s*/).filter(Boolean);
+      if (toks.length < 2 && !/[。？！?!]$/.test(s)) toks = s.split(/\s+/);
+      if (toks.length > 1) out.push([toks.join(' '), a]);
+      else if (out.length && !out[out.length - 1][1] && CJK.test(s)) out[out.length - 1][1] = s;   // câu đáp án viết ngay dưới
+    });
+    return out;
+  },
+  tracnghiem(ls) {
+    // Các lựa chọn viết liền một dòng ("A. 三  B. 四  C. 五") được tách ra từng dòng.
+    const ps = ls.flatMap(l => l.split(/\s+(?=(?:\*\*)?[B-F]\s*[.、．)）])/));
+    const out = []; let q = null;
+    const flush = () => {
+      if (!q) return;
+      const bold = q.o.filter(o => o.b).length;
+      const k = q.a ? 'ABCDEF'.indexOf(q.a[0]) : bold && bold < q.o.length ? q.o.findIndex(o => o.b) : -1;
+      out.push([q.q, ...q.o.map((o, j) => (j === k ? '*' : '') + o.t)]); q = null;
+    };
+    ps.forEach((l, i) => {
+      const p = bo(l).trim(), m = p.match(OPT);
+      if (m && q) { const [t, a] = dapAn(m[2]); q.o.push({t, b: l.includes('**')}); if (a) q.a = a.toUpperCase(); return; }
+      const [s, a] = dapAn(p.replace(SO, ''));
+      if (!s) { if (q && a) q.a = a.toUpperCase(); return; }
+      flush();
+      if (ps[i + 1] && OPT.test(bo(ps[i + 1]).trim())) q = {q: s, o: [], a: a.toUpperCase()};
+      else out.push(/^đoạn\s*[:：]/i.test(s) ? s : 'Đoạn: ' + s);
+    });
+    flush();
+    return out;
+  },
+  tuluan(ls) {
+    const ps = ls.map(l => bo(l).trim());
+    const HOI = /^([★☆]|[a-e][.)]\s)/;
+    const star = ps.some(l => HOI.test(l));   // có ★ hoặc "a." thì đó là câu hỏi, các dòng khác là đoạn văn
+    const out = []; let doan = -1, last = null;
+    ps.forEach(l => {
+      if (doanRe.test(l)) { out.push(l); doan = -1; return; }
+      const [s0, a] = dapAn(l);
+      if (!s0) { if (a && last) last[1] = a; return; }
+      if (star && !HOI.test(s0)) {
+        const s = s0.replace(SO, '');
+        if (doan < 0 || SO.test(s0)) { doan = out.length; out.push('Đoạn: ' + s); } else out[doan] += ' // ' + s;
+        return;
+      }
+      last = [s0.replace(/^[★☆]\s*/, '').replace(SO, ''), a]; out.push(last); doan = -1;
+    });
+    return out;
+  },
+};
+function tuDo(loai, ls) {
+  const out = []; let buf = [];
+  const flush = () => { if (buf.length) out.push(...TU_DO[loai](buf).map(x => Array.isArray(x) ? J(x) : x)); buf = []; };
+  ls.filter(l => !RAC.test(bo(l))).forEach(l => { if (l.includes('|')) { flush(); out.push(bo(l)); } else buf.push(l); });
+  flush();
+  return out.join('\n');
+}
+/* Chữ của một đoạn văn: xuống dòng mềm (Shift+Enter) thành dòng mới, chữ in đậm bọc trong ** */
+function paraText(el) {
+  const c = el.cloneNode(true);
+  c.querySelectorAll('br').forEach(b => b.replaceWith('\n'));
+  c.querySelectorAll('strong').forEach(b => { if (b.textContent.trim()) b.replaceWith(`**${b.textContent}**`); });
+  return c.textContent.replace(/\*\*\*\*/g, '').replace(/\*\*(\s*)\*\*/g, '$1');
+}
+const soCau = (loai, d) => loai === 'dien' ? d.nhom.reduce((n, g) => n + g.cau.length, 0) : loai === 'tuluan' ? d.doan.reduce((n, p) => n + p.hoi.length, 0) : d.cau.length;
 
 async function napWord(file) {
   const {value: html} = await mammoth.convertToHtml({arrayBuffer: await file.arrayBuffer()});
@@ -380,10 +627,10 @@ async function napWord(file) {
     const t = txt.replace(/^(\d+|[IVX]+)[.)]\s+/, '').trim();
     // "Bài 10: 你家有几口人？" ở đầu giáo án là tên bài, không phải bài tập.
     const m = t.match(/^bài\s*(?:tập\s*)?\d+\s*[.:：)\-–]?\s*(.*)$/i);
-    if (m && t.length < 120 && (seenEx || /chọn|điền|sắp xếp|đọc|trả lời|trắc nghiệm|viết|nối|dịch|hoàn thành/i.test(m[1]))) {
+    if (m && t.length < 120 && (seenEx || /chọn|điền|sắp xếp|đọc|trả lời|trắc nghiệm|viết|nối|dịch|hoàn thành|hoàn thiện/i.test(m[1]))) {
       ex = {tieude: m[1].trim(), lines: []}; out.exs.push(ex); sec = 'ex'; seenEx = true; return true;
     }
-    if (t.length > 80) return false;
+    if (t.length > 80 || (sec === 'ex' && CJK.test(t))) return false;
     for (const [k, re] of SEC) if (re.test(t)) {
       sec = k; ex = null;
       if (k === 'baitap') seenEx = true;
@@ -426,37 +673,64 @@ async function napWord(file) {
       });
       continue;
     }
-    const items = /^(UL|OL)$/.test(el.tagName) ? [...el.querySelectorAll('li')].map(li => li.textContent) : [el.textContent];
-    for (let txt of items) {
-      txt = txt.replace(/\s+/g, ' ').trim(); if (!txt) continue;
-      if (head(txt)) continue;
-      line(txt);
+    // Danh sách lồng nhau (Word hay tạo <ul><li><ol><li>…): mỗi mục chỉ lấy chữ của chính nó, bỏ danh sách con.
+    const items = /^(UL|OL)$/.test(el.tagName) ? [...el.querySelectorAll('li')].map(li => {
+      const c = li.cloneNode(true); c.querySelectorAll('ul,ol').forEach(x => x.remove()); return c;
+    }) : [el];
+    for (const it of items) for (let txt of paraText(it).split('\n')) {
+      txt = txt.replace(/\s+/g, ' ').trim(); if (!bo(txt).trim()) continue;
+      if (head(bo(txt))) continue;
+      line(sec === 'ex' ? txt : bo(txt));
     }
   }
 
   const I = out.info, got = [];
+  const add = (t, go, cls) => got.push({t, go, cls});
   if (Object.keys(I).length) {
     if (I.so) { $('#so').value = parseInt(I.so, 10) || ''; $('#dir').value = 'bai' + $('#so').value; }
     ['ten', 'pinyin', 'nghia', 'cap', 'gioithieu'].forEach(k => { if (I[k]) $('#' + k).value = I[k]; });
     const m = I.mau && MAU.find(x => new RegExp(x.ten, 'i').test(I.mau) || x.id === I.mau.toLowerCase());
     if (m) { S.mau = m.id; drawThemes(); }
     if (I.anhbia) $('#anhbia').dataset.want = I.anhbia;
-    got.push('thông tin bài');
+    add(`Thông tin bài${I.ten ? ': ' + I.ten : ''}${m ? ` · giao diện ${m.ten}` : ''}`, 'box-info');
   }
   ['kienthuc', 'nangluc', 'phamchat'].forEach(k => { if (out[k].length) $('#' + k).value = out[k].join('\n'); });
-  if (out.kienthuc.length + out.nangluc.length + out.phamchat.length) got.push('mục tiêu');
-  if (out.tientrinh.length) { $('#tientrinh').value = out.tientrinh.join('\n'); if (ttTitle) $('#tt-tieude').value = ttTitle; got.push(`${out.tientrinh.length} bước tiến trình`); }
-  if (out.tumoi.length) { $('#tumoi').value = out.tumoi.join('\n'); got.push(`${out.tumoi.length} từ mới`); }
-  if (out.cachviet.length) $('#cachviet').value = out.cachviet.join('\n');
-  if (out.nguphap.length) { $('#nguphap').value = out.nguphap.join('\n'); got.push(`${out.nguphap.length} điểm ngữ pháp`); }
-  if (out.hoithoai.length) { $('#hoithoai').value = out.hoithoai.join('\n'); got.push(`${out.hoithoai.length} câu hội thoại`); }
+  const mtN = out.kienthuc.length + out.nangluc.length + out.phamchat.length;
+  if (mtN) add(`Mục tiêu: ${mtN} ý`, 'box-muctieu');
+  if (out.tientrinh.length) { $('#tientrinh').value = out.tientrinh.join('\n'); if (ttTitle) $('#tt-tieude').value = ttTitle; add(`Tiến trình: ${out.tientrinh.length} bước`, 'box-muctieu'); }
+  if (out.tumoi.length) { $('#tumoi').value = out.tumoi.join('\n'); add(`Từ mới: ${out.tumoi.length} từ`, 'box-tumoi'); }
+  if (out.cachviet.length) { $('#cachviet').value = out.cachviet.join('\n'); add(`Cách viết: ${out.cachviet.length} chữ`, 'box-tumoi'); }
+  if (out.nguphap.length) { $('#nguphap').value = out.nguphap.join('\n'); add(`Ngữ pháp: ${out.nguphap.length} điểm`, 'box-nguphap'); }
+  if (out.hoithoai.length) { $('#hoithoai').value = out.hoithoai.join('\n'); add(`Hội thoại: ${out.hoithoai.length} câu`, 'box-hoithoai'); }
   if (htIntro) $('#ht-gioithieu').value = htIntro;
   const exs = out.exs.filter(x => x.lines.length);
-  if (exs.length) { S.exs = exs.map(x => ({loai: guessLoai(x.tieude), tieude: x.tieude, text: x.lines.join('\n')})); drawExs(); got.push(`${exs.length} bài tập`); }
-  if (got.length) log(`Word “${file.name}”: đã nạp ${got.join(', ')}. Kiểm tra lại các ô có cảnh báo màu vàng.`);
-  else log(`Word “${file.name}”: không tìm thấy đề mục nào theo mẫu (Từ mới, Ngữ pháp, Hội thoại, Bài 1…). Hãy soạn theo mẫu Word.`, 'err');
+  if (exs.length) {
+    S.exs = exs.map(x => { const loai = guessLoai(x.tieude); return {loai, tieude: x.tieude, text: tuDo(loai, x.lines)}; });
+    drawExs();
+    S.exs.forEach((x, i) => {
+      const w = [], d = PX[x.loai](x.text, w), n = soCau(x.loai, d);
+      add(`Bài ${i + 1} · ${LOAI[x.loai].ten} · ${n} câu${w.length ? ` · ${w.length} chỗ cần xem (thường là thiếu đáp án)` : ''}`, 'box-baitap', !n ? 'err' : w.length ? 'warn' : '');
+    });
+  }
+  if (got.length) logFile(file.name, got);
+  else logFile(file.name, [{t: 'Không tìm thấy đề mục nào (Từ mới, Ngữ pháp, Hội thoại, Bài 1: …). Xem ví dụ bên cạnh để soạn cho đúng.', cls: 'err'}]);
   changed();
 }
+
+/* Khung ví dụ bên cạnh ô nạp file: đổi theo loại file vừa nạp hoặc theo nút bấm. */
+function showDemo(k) {
+  S.demo = k; const d = DEMO[k];
+  $$('#demoSeg button, #kinds button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === k));
+  $('#demoBody').innerHTML = `<div class="pair">
+      <figure><figcaption>${d.a}</figcaption><div class="paper">${d.paper}</div></figure>
+      <div class="to" aria-hidden="true">→</div>
+      <figure><figcaption>${d.b}</figcaption><div class="screen">${d.web}</div></figure>
+    </div>
+    <ul class="tips">${d.tips.map(t => `<li>${t}</li>`).join('')}</ul>
+    ${d.dl ? `<div class="dl">${d.dl.map(([h, t]) => `<a class="btn sm" href="${h}" download>${t}</a>`).join('')}</div>` : ''}`;
+}
+$('#demoSeg').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b) showDemo(b.dataset.d); });
+$('#kinds').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b) showDemo(b.dataset.d); });
 
 const drop = $('#drop');
 $('#pickFile').addEventListener('click', () => $('#file').click());
@@ -464,6 +738,14 @@ $('#file').addEventListener('change', e => { nap([...e.target.files]); e.target.
 ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => nap([...e.dataTransfer.files]));
+
+/* Nút "Chèn ví dụ" dưới các mục 4–7 */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-vd]'); if (!b) return;
+  const ta = $('#' + b.dataset.vd);
+  ta.value = ta.value.trim() ? ta.value.replace(/\n*$/, '\n') + VD[b.dataset.vd] : VD[b.dataset.vd];
+  ta.focus(); changed();
+});
 
 /* Dán bảng từ Word/Excel: cột cách nhau bằng Tab → " | " */
 document.addEventListener('paste', e => {
@@ -503,7 +785,7 @@ async function openLesson(dir) {
     S.cu = usedImgs({anhbia: B.anhbia, tumoi: B.tumoi || [], cachviet: B.cachviet || {}});
     fill(B);
   }
-  dirty = false; drawPick(); render();
+  dirty = false; S.luu = !!dir; drawPick(); render();
 }
 async function lessonCap(dir) {
   try { delete window.BAI; await loadScript(`${dir}/du-lieu.js?v=${Date.now()}`); return window.BAI.cap || ''; } catch { return ''; }
@@ -541,7 +823,7 @@ function bundle(B, L) {
   return [files, L2];
 }
 function saved(B, L2) {
-  window.DANH_SACH = L2; S.sua = B.dir; dirty = false;
+  window.DANH_SACH = L2; S.sua = B.dir; dirty = false; S.luu = true;
   if (S.slideFile) { S.slideName = B.slide; S.slideFile = null; }
   drawPick();
 }
@@ -566,7 +848,7 @@ $('#save').addEventListener('click', async () => {
     if (list().some(x => x.dir === B.dir) && S.sua !== B.dir && !confirm(`Thư mục ${B.dir} đã có bài. Ghi đè?`)) return;
     const [files, L2] = bundle(B, L);
     for (const [p, d] of files) await write(p, d);
-    saved(B, L2);
+    saved(B, L2); render();
     toast(`Đã lưu Bài ${B.so} vào web/${B.dir}. Mở GitHub Desktop, bấm Commit rồi Push để đưa lên mạng.`);
   } catch (e) {
     if (e.name !== 'AbortError') toast('Không lưu được: ' + e.message);
@@ -580,7 +862,7 @@ async function zipIt(B) {
   a.href = URL.createObjectURL(await z.generateAsync({type: 'blob'}));
   a.download = `${B.dir}.zip`; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  saved(B, L2);
+  saved(B, L2); render();
   toast(`Đã tải ${B.dir}.zip. Giải nén vào thư mục web (chép đè danh-sach.js), rồi Commit và Push bằng GitHub Desktop.`);
 }
 $('#zip').addEventListener('click', () => { const [B] = model(); if (ready(B)) zipIt(B); });
@@ -588,7 +870,7 @@ window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); })
 
 /* ---------- start ---------- */
 (async () => {
-  drawThemes(); drawPick();
+  drawThemes(); drawPick(); showDemo(S.demo);
   const d = readDraft();
   if (d && d.dirty && d.B) {
     if (d.sua) { S.sua = d.sua; S.goc = BASE + d.sua + '/anh/'; S.cu = usedImgs(d.B); }

@@ -8,25 +8,27 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
 <style>
-/* Layout: editor column on the left, live lesson preview pinned on the right; stacks on narrow screens. */
+/* Layout: editor column on the left, live lesson preview pinned on the right; stacks on narrow screens.
+   Each editor section pairs its input with a worked example (what to write → what students see). */
 :root{
   --paper:#f4f7f5; --surface:#ffffff; --ink:#18221e; --muted:#5a6a63; --line:#d6e0da;
-  --jade:#16765b; --jade-soft:#e1f0ea; --seal:#bf3a29; --warn:#9a5b00; --warn-soft:#fdf3e1;
+  --jade:#16765b; --jade-soft:#e1f0ea; --seal:#bf3a29; --seal-soft:#fae8e4; --warn:#9a5b00; --warn-soft:#fdf3e1;
   --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
   --f-body:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
-  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}}
+  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --seal-soft:#3a201c; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
-  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}
+  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --seal-soft:#3a201c; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--jade);outline-offset:2px}
 h1,h2,h3{margin:0;line-height:1.25}
+.zh{font-family:var(--f-han)}
 
 .bar{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
 .bar .in{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px max(16px,env(safe-area-inset-left,0px))}
@@ -40,26 +42,38 @@ h1,h2,h3{margin:0;line-height:1.25}
 .btn.danger:hover{border-color:var(--seal);color:var(--seal)}
 select.in-sel{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface)}
 
-.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px max(16px,env(safe-area-inset-left,0px)) 40px}
+/* 4 bước */
+.steps{list-style:none;margin:0;padding:0 max(16px,env(safe-area-inset-left,0px)) 10px;display:flex;flex-wrap:wrap;gap:6px}
+.steps li{flex:1 1 160px;display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.85rem;background:var(--paper)}
+.steps li>span:first-child{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;border:1.5px solid var(--line);color:var(--muted)}
+.steps li b{display:block;font-size:.88rem}
+.steps li small{color:var(--muted);font-size:.78rem;display:block;line-height:1.3}
+.steps li.done>span:first-child{background:var(--jade);border-color:var(--jade);color:var(--surface)}
+.steps li.todo{border-color:var(--warn);background:var(--warn-soft)}
+.steps li.todo>span:first-child{border-color:var(--warn);color:var(--warn)}
+.steps li button{all:unset;cursor:pointer;display:block}
+.steps li button:focus-visible{outline:3px solid var(--jade);outline-offset:2px;border-radius:4px}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;padding:16px max(16px,env(safe-area-inset-left,0px)) 40px}
 .editor{display:grid;gap:14px;align-content:start;min-width:0}
-.preview{position:sticky;top:64px;height:calc(100vh - 80px);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
-.preview .ph{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.preview{position:sticky;top:130px;height:calc(100vh - 146px);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.preview .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
 .preview iframe{flex:1;border:0;width:100%;background:var(--paper)}
 .ph .sizes{display:flex;gap:4px}
 .preview.phone iframe{width:390px;max-width:100%;margin:0 auto;border-inline:1px solid var(--line)}
 @media (max-width:1000px){.layout{grid-template-columns:1fr}.preview{position:relative;top:0;height:80vh}}
 
-.box{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;scroll-margin-top:140px}
 .box>summary{list-style:none;padding:12px 16px;display:flex;align-items:baseline;gap:10px;cursor:pointer}
 .box>summary::-webkit-details-marker{display:none}
 .box>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
 .box[open]>summary::before{transform:rotate(90deg)}
 .box>summary h2{font-size:1rem}
 .box>summary .cnt{margin-left:auto;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.box .body{padding:0 16px 16px;display:grid;gap:10px}
-.hint{font-size:.83rem;color:var(--muted)}
+.box>summary .cnt.warn{color:var(--warn);font-weight:600}
+.box .body{padding:0 16px 16px;display:grid;gap:10px;container-type:inline-size}
+.hint{font-size:.83rem;color:var(--muted);margin:0}
 .hint code,.fmt{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;background:var(--jade-soft);color:var(--ink);border-radius:5px;padding:1px 5px}
-.fmt{display:block;padding:6px 8px;white-space:pre-wrap;overflow-wrap:anywhere}
 label.f{display:grid;gap:3px;font-size:.85rem;font-weight:500}
 label.f input,label.f select,textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--paper);font-weight:400;font-size:.95rem;width:100%}
 textarea{font-family:var(--f-han),var(--f-body);min-height:110px;resize:vertical;line-height:1.6;white-space:pre;overflow-wrap:normal;overflow-x:auto}
@@ -68,36 +82,184 @@ textarea.wrap{white-space:pre-wrap}
 .warns{font-size:.83rem;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;display:grid;gap:2px}
 .warns:empty{display:none}
 
-.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;display:grid;gap:8px;justify-items:center}
-.drop.over{border-color:var(--jade);background:var(--jade-soft)}
-.log{font-size:.85rem;display:grid;gap:2px;text-align:left;width:100%}
-.log .ok{color:var(--jade)} .log .err{color:var(--seal)}
+/* cột: thứ tự các cột cách nhau bằng | */
+.cols{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:.78rem}
+.cols span{border:1px dashed var(--line);border-radius:6px;padding:1px 7px;color:var(--muted);white-space:nowrap}
+.cols span.req{border-style:solid;border-color:var(--jade);color:var(--ink);font-weight:600;background:var(--jade-soft)}
+.cols i{font-style:normal;color:var(--muted);font-weight:700}
+.cols em{font-style:normal;color:var(--muted);margin-left:6px}
 
-.themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.theme{position:relative;border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;display:grid;gap:6px;background:var(--surface)}
-.theme:has(input:checked){border-color:var(--jade)}
+/* ---- Mục 1: nạp file ---- */
+.nap{display:grid;gap:14px}
+@container (min-width:640px){.nap{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px 14px;text-align:center;display:grid;gap:10px;justify-items:center;align-content:center;min-height:190px;transition:background .15s,border-color .15s}
+.drop.over{border-color:var(--jade);background:var(--jade-soft)}
+.drop svg{width:40px;height:40px;color:var(--jade)}
+.drop .big{font-weight:600;font-size:1rem}
+.kinds{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.kinds button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:.8rem;color:var(--muted)}
+.kinds button:hover,.kinds button[aria-pressed="true"]{border-color:var(--jade);color:var(--jade)}
+.kinds button b{color:var(--ink);font-weight:600}
+.results{display:grid;gap:8px}
+.res{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--paper);font-size:.85rem;animation:pop .25s ease-out}
+@keyframes pop{from{transform:translateY(4px);opacity:0}}
+.res .rh{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.res .rh b{overflow-wrap:anywhere}
+.res .tag{flex:none;font-size:.7rem;font-weight:700;border-radius:5px;padding:1px 6px;color:#fff}
+.tag.w{background:#2b579a}.tag.p{background:#c4472b}.tag.d{background:#b8302a}.tag.i{background:#6b7280}
+.res ul{margin:0;padding:0;list-style:none;display:grid;gap:2px}
+.res li{display:flex;gap:6px;align-items:baseline}
+.res li::before{content:"✓";color:var(--jade);font-weight:700;flex:none}
+.res li.warn::before{content:"!";color:var(--warn)}
+.res li.err::before{content:"✗";color:var(--seal)}
+.res li.warn{color:var(--warn)} .res li.err{color:var(--seal)}
+.res a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
+.res a:hover{text-decoration-color:currentColor}
+
+.demo{border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:10px;align-content:start;background:var(--paper)}
+.demo .dh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+.demo .dh b{font-size:.85rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:999px;padding:2px;gap:2px;background:var(--surface)}
+.seg button{border:0;background:none;border-radius:999px;padding:3px 10px;font-size:.8rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--jade);color:var(--surface)}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:4px;align-items:start}
+.pair .to{align-self:center;text-align:center;color:var(--jade);font-weight:700;font-size:1.1rem}
+.pair figure{margin:0;display:grid;gap:4px}
+.pair figcaption{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tips{margin:0;padding-left:18px;font-size:.82rem;display:grid;gap:3px}
+.tips b{font-weight:600}
+.demo .dl{display:flex;flex-wrap:wrap;gap:6px}
+
+/* bản giả lập: trang Word, màn hình học sinh */
+.paper{background:#fff;color:#111;border:1px solid #d9d9d9;box-shadow:0 2px 6px rgb(0 0 0 / .08);border-radius:3px;padding:10px 12px;font-family:"Times New Roman",var(--f-han),serif;font-size:12px;line-height:1.55;display:grid;gap:2px;min-height:100%}
+.paper p{margin:0}
+.paper .h{font-weight:700;font-size:13px;margin-top:4px}
+.paper .h1{font-weight:700;font-size:14px;color:#1f3864}
+.paper .gray{color:#888}
+.paper .red{color:#c00;font-weight:600}
+.paper table{border-collapse:collapse;font-size:11px;width:100%}
+.paper td,.paper th{border:1px solid #999;padding:1px 4px;text-align:left}
+.paper th{background:#f2f2f2}
+.slides{display:grid;gap:5px}
+.slide{aspect-ratio:16/9;background:#fff;border:1px solid #d9d9d9;border-radius:3px;position:relative;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:5px;font-size:10px;color:#333}
+.slide i{background:linear-gradient(135deg,#9cc9b8,#e6b9a8);border-radius:2px;display:grid;place-items:center;font-style:normal;color:#fff;font-weight:700;font-size:9px}
+.slide i.gif{background:#fff;border:1px solid #e5b4ab;color:#bf3a29;font-family:var(--f-han);font-size:18px}
+.slide span{position:absolute;right:4px;bottom:2px;font-size:8px;color:#999}
+.files{display:grid;gap:5px}
+.files div{display:flex;gap:6px;align-items:center;background:#fff;color:#111;border:1px solid #d9d9d9;border-radius:4px;padding:4px 6px;font-size:11px}
+.files div i{width:26px;height:26px;border-radius:3px;background:linear-gradient(135deg,#9cc9b8,#e6b9a8);flex:none}
+.screen{border:2px solid var(--ink);border-radius:14px;background:var(--paper);padding:8px;display:grid;gap:6px;font-size:11px;min-height:100%;align-content:start}
+.mk-h{font-weight:700;font-size:11px}
+.mk-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px;display:grid;gap:2px}
+.mk-row{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.mk-cells{display:flex;gap:2px}
+.mk-cells span{width:26px;height:26px;display:grid;place-items:center;font-family:var(--f-han);font-size:17px;border:1px solid #e5b4ab;background:
+  linear-gradient(#f0cfc8,#f0cfc8) center/100% 1px no-repeat,linear-gradient(#f0cfc8,#f0cfc8) center/1px 100% no-repeat,var(--surface)}
+.mk-img{width:34px;height:34px;border-radius:5px;background:linear-gradient(135deg,#9cc9b8,#e6b9a8);flex:none}
+.mk-py{color:var(--jade);font-weight:600}
+.mk-pos{font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 3px;margin-left:3px;font-weight:400}
+.mk-mute{color:var(--muted)}
+.mk-sent{font-family:var(--f-han);font-size:13px;line-height:2}
+.mk-sent i{font-style:normal;font-family:var(--f-body);display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;border:1px solid var(--line);font-size:9px;font-weight:700;margin:0 1px;vertical-align:1px;background:var(--paper)}
+.mk-sent i.on{background:var(--jade);border-color:var(--jade);color:var(--surface)}
+.mk-sent em{font-style:normal;color:var(--seal);font-weight:700}
+.mk-sel{display:inline-block;border:1px solid var(--line);border-bottom-color:var(--jade);border-radius:4px;padding:0 4px;font-size:12px;background:var(--paper);line-height:1.5}
+.mk-tok{display:flex;flex-wrap:wrap;gap:3px}
+.mk-tok span{font-family:var(--f-han);border:1px solid var(--line);border-radius:5px;padding:0 5px;background:var(--paper);font-size:12px}
+.mk-tok.ans{border-bottom:1.5px solid var(--line);min-height:22px;padding-bottom:3px}
+.mk-tok.ans span{background:var(--jade-soft);border-color:var(--jade)}
+.mk-tok span.off{opacity:.25}
+.mk-opts{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.mk-opts span{border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-family:var(--f-han);font-size:11px;background:var(--paper)}
+.mk-opts span.on{border-color:var(--jade);background:var(--jade-soft);font-weight:600}
+.mk-btn{display:inline-block;background:var(--jade);color:var(--surface);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:600;justify-self:start}
+.mk-btn.o{background:none;color:var(--ink);border:1px solid var(--line)}
+.mk-ok{color:var(--jade);font-weight:600}
+.mk-pass{font-family:var(--f-han);background:var(--paper);border-radius:6px;padding:4px 6px;font-size:12px}
+.mk-pat{background:var(--jade-soft);border-radius:5px;padding:2px 6px;font-family:var(--f-han)}
+.mk-gal{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.mk-gal span{display:grid;gap:1px;font-size:8.5px;color:var(--muted);text-align:center}
+.mk-gal span i{aspect-ratio:1;border-radius:4px;background:linear-gradient(135deg,#9cc9b8,#e6b9a8)}
+.mk-gal span i.gif{background:#fff;border:1px solid #e5b4ab;display:grid;place-items:center;font-style:normal;font-family:var(--f-han);color:#bf3a29;font-size:15px}
+.mk-gal span.on i{outline:2px solid var(--jade);outline-offset:1px}
+.mk-who{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:700;background:var(--jade-soft);color:var(--jade);flex:none}
+.mk-line{display:flex;gap:6px;align-items:flex-start}
+
+/* ví dụ dưới mỗi mục */
+details.vd{border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+details.vd>summary{cursor:pointer;padding:6px 10px;font-size:.83rem;font-weight:600;color:var(--jade);list-style:none;display:flex;gap:6px;align-items:center}
+details.vd>summary::-webkit-details-marker{display:none}
+details.vd>summary::before{content:"▸";transition:transform .15s}
+details.vd[open]>summary::before{transform:rotate(90deg)}
+details.vd .in{padding:0 10px 10px;display:grid;gap:8px}
+.trio{display:grid;gap:6px;grid-template-columns:1fr}
+@container (min-width:560px){.trio{grid-template-columns:repeat(3,minmax(0,1fr))}.trio.two{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}}
+.trio figure{margin:0;display:grid;gap:4px;align-content:start}
+.trio figcaption{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.code{font-family:ui-monospace,Consolas,var(--f-han),monospace;font-size:.78rem;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.5}
+.code b{color:var(--jade)}
+
+/* mẫu giao diện */
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.theme{position:relative;border:2px solid var(--line);border-radius:12px;padding:8px;cursor:pointer;display:grid;gap:5px;background:var(--surface);align-content:start}
+.theme:has(input:checked){border-color:var(--jade);box-shadow:0 0 0 3px var(--jade-soft)}
+.theme:has(input:checked) strong::after{content:" ✓";color:var(--jade)}
 .theme input{position:absolute;opacity:0}
 .theme:has(input:focus-visible){outline:3px solid var(--jade);outline-offset:2px}
-.sw{height:64px;border-radius:8px;padding:8px;display:grid;align-content:space-between}
-.sw b{font-family:var(--f-han);font-size:1.3rem;line-height:1}
-.sw i{display:flex;gap:4px}
-.sw i span{height:8px;flex:1;border-radius:4px}
-.theme strong{font-size:.92rem}
-.theme small{color:var(--muted);font-size:.8rem;line-height:1.35}
+.theme strong{font-size:.9rem}
+.theme small{color:var(--muted);font-size:.78rem;line-height:1.35}
+.theme .kind{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.theme .kind.bo{color:var(--seal)}
+.mini{height:92px;border-radius:7px;padding:5px;display:grid;gap:3px;background:var(--bg);overflow:hidden;position:relative;border:1px solid rgb(0 0 0 / .08);
+  grid-template-columns:repeat(4,1fr);grid-template-rows:30px 4px 1fr;align-content:stretch}
+.mini b{font-family:var(--f-han);font-size:15px;color:var(--fg);grid-column:span 2;align-self:center;line-height:1}
+.mini .img{grid-column:span 2;background:var(--a);opacity:.55;border-radius:var(--rr)}
+.mini .nav{grid-column:1/-1;background:var(--p);border-radius:2px;opacity:.85}
+.mini .k{background:var(--s);border:1px solid rgb(0 0 0 / .1);border-radius:var(--rr)}
+.mini[data-l="sotay"]{grid-template-columns:8px 1fr 24px;grid-template-rows:24px repeat(4,1fr);background-image:repeating-linear-gradient(transparent 0 8px,rgb(43 89 166 / .15) 8px 9px)}
+.mini[data-l="sotay"] .nav{grid-column:1;grid-row:1/-1;width:4px}
+.mini[data-l="sotay"] b{grid-column:2;grid-row:1;font-size:13px}
+.mini[data-l="sotay"] .img{grid-column:3;grid-row:1;transform:rotate(5deg);opacity:.7}
+.mini[data-l="sotay"] .k{grid-column:2/4;border:0;border-bottom:1px solid rgb(0 0 0 / .15);border-radius:0;background:none}
+.mini[data-l="the"]{grid-template-columns:repeat(3,1fr);grid-template-rows:44px 4px 1fr}
+.mini[data-l="the"] .img{grid-column:1/-1;grid-row:1;opacity:1;background:linear-gradient(135deg,var(--p),var(--a));border-radius:4px}
+.mini[data-l="the"] b{grid-column:1/-1;grid-row:1;z-index:1;color:#fff;justify-self:center}
+.mini[data-l="the"] .nav{grid-column:2;height:4px;border-radius:4px}
+.mini[data-l="the"] .k{border-radius:8px;box-shadow:0 2px 0 rgb(0 0 0 / .12)}
+.mini[data-l="the"] .k:nth-of-type(n+6),.mini[data-l="bangden"] .k:nth-of-type(n+6){display:none}
+.mini[data-l="tapchi"]{grid-template-columns:1fr 1fr;grid-template-rows:30px 2px repeat(2,1fr);column-gap:8px;border-top:4px solid var(--fg)}
+.mini[data-l="tapchi"] b{grid-column:1/-1;font-family:Georgia,var(--f-han);font-size:22px;font-weight:700}
+.mini[data-l="tapchi"] .img{display:none}
+.mini[data-l="tapchi"] .nav{background:var(--fg)}
+.mini[data-l="tapchi"] .k{border:0;border-bottom:1px solid rgb(0 0 0 / .2);border-radius:0;background:none}
+.mini[data-l="tapchi"] .k:nth-of-type(odd){box-shadow:5px 0 0 -4px rgb(0 0 0 / .2)}
+.mini[data-l="bangden"]{grid-template-columns:repeat(3,1fr);grid-template-rows:30px 3px 1fr;border-bottom:6px solid #7a5230}
+.mini[data-l="bangden"] b{grid-column:1/-1;justify-self:center;font-size:18px}
+.mini[data-l="bangden"] .img{display:none}
+.mini[data-l="bangden"] .nav{grid-column:1/-1;opacity:.35}
+.mini[data-l="bangden"] .k{background:none;border:1.5px dashed rgb(243 241 231 / .45)}
 
+/* bài tập */
 .exs{display:grid;gap:10px}
 .exi{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;background:var(--paper)}
 .exi .hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .exi .hd b{font-variant-numeric:tabular-nums;min-width:52px}
 .exi .hd input{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--surface)}
 .exi .hd select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--surface)}
-.add-ex{display:flex;flex-wrap:wrap;gap:6px}
+.exi details.vd{background:var(--surface)}
+.exi textarea{background:var(--surface)}
+.add-ex{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.add-ex button{border:1px dashed var(--line);background:var(--paper);border-radius:10px;padding:8px;display:grid;gap:4px;text-align:left;font-size:.85rem}
+.add-ex button:hover{border-color:var(--jade);border-style:solid}
+.add-ex button b{color:var(--jade)}
+.add-ex .mk-sent,.add-ex .mk-tok,.add-ex .mk-opts{pointer-events:none}
 
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
 .gallery button{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:4px;display:grid;gap:2px;font-size:.72rem;color:var(--muted);text-align:center;overflow-wrap:anywhere}
 .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;background:#fff}
-.gallery button.used{border-color:var(--jade)}
+.gallery button.used{border-color:var(--jade);color:var(--jade);font-weight:600}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:.92rem;z-index:20;max-width:calc(100% - 32px)}
+@media (max-width:640px){.steps li{flex-basis:calc(50% - 6px)}.preview{top:0}}
 </style>
 </head>
 <body>
@@ -106,30 +268,59 @@ textarea.wrap{white-space:pre-wrap}
   <select class="in-sel" id="pick" aria-label="Chọn bài để sửa"></select>
   <button class="btn primary" id="save">Lưu vào thư mục web</button>
   <button class="btn" id="zip">Tải gói .zip</button>
-</div></div>
+</div>
+<ol class="steps" id="steps" aria-label="Các bước soạn bài">
+  <li data-s="nap"><span>1</span><button data-go="box-nap"><b>Nạp file</b><small>Word, slide hoặc ảnh</small></button></li>
+  <li data-s="mau"><span>2</span><button data-go="box-mau"><b>Chọn giao diện</b><small></small></button></li>
+  <li data-s="xem"><span>3</span><button data-go=""><b>Kiểm tra, điền đáp án</b><small></small></button></li>
+  <li data-s="luu"><span>4</span><button data-go="save"><b>Lưu bài</b><small>Chưa lưu</small></button></li>
+</ol>
+</div>
 
 <div class="layout">
 <div class="editor">
 
-  <details class="box" open>
+  <details class="box" id="box-nap" open>
     <summary><h2>1. Nạp dữ liệu từ file</h2></summary>
     <div class="body">
-      <div class="drop" id="drop">
-        <div><b>Kéo thả file vào đây</b> hoặc <button class="btn sm" id="pickFile">Chọn file</button></div>
-        <div class="hint">Word (.docx) soạn theo <a href="khung/mau-soan-bai.docx">mẫu Word</a> · Slide (.pptx): lấy ảnh và dùng làm bài thuyết trình · Ảnh (.jpg, .png, .gif)</div>
-        <input type="file" id="file" multiple accept=".docx,.pptx,image/*" hidden>
-        <div class="log" id="log"></div>
+      <div class="nap">
+        <div style="display:grid;gap:10px;align-content:start">
+          <div class="drop" id="drop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+            <div class="big">Kéo thả file vào đây</div>
+            <div><button class="btn primary sm" id="pickFile">Chọn file từ máy</button></div>
+            <div class="kinds" id="kinds" role="group" aria-label="Xem ví dụ theo loại file">
+              <button data-d="baitap"><b>.docx</b> phiếu bài tập</button>
+              <button data-d="giaoan"><b>.docx</b> giáo án</button>
+              <button data-d="slide"><b>.pptx .pdf</b> slide</button>
+              <button data-d="anh"><b>.jpg .png .gif</b> ảnh</button>
+            </div>
+            <input type="file" id="file" multiple accept=".docx,.pptx,.pdf,image/*" hidden>
+          </div>
+          <div class="results" id="log" aria-live="polite"></div>
+        </div>
+        <div class="demo" id="demo">
+          <div class="dh"><b>Ví dụ: file thế nào thì lên web thế nào</b>
+            <div class="seg" id="demoSeg" role="group" aria-label="Loại file">
+              <button data-d="baitap">Phiếu bài tập</button><button data-d="giaoan">Giáo án</button><button data-d="slide">Slide</button><button data-d="anh">Ảnh</button>
+            </div>
+          </div>
+          <div id="demoBody" style="display:grid;gap:10px"></div>
+        </div>
       </div>
       <p class="hint">Có thể dán thẳng bảng từ Word hoặc Excel vào từng ô bên dưới, các cột sẽ tự tách bằng dấu <code>|</code>.</p>
     </div>
   </details>
 
-  <details class="box" open>
-    <summary><h2>2. Mẫu giao diện</h2></summary>
-    <div class="body"><div class="themes" id="themes"></div></div>
+  <details class="box" id="box-mau" open>
+    <summary><h2>2. Mẫu giao diện</h2><span class="cnt" id="c-mau"></span></summary>
+    <div class="body">
+      <p class="hint">Bốn mẫu đầu đổi cả <b>bố cục</b> (cách xếp thẻ từ, mục lục, hội thoại…); ba mẫu sau giữ bố cục chuẩn, chỉ đổi màu và kiểu chữ. Bấm để xem ngay ở khung bên phải.</p>
+      <div class="themes" id="themes"></div>
+    </div>
   </details>
 
-  <details class="box" open>
+  <details class="box" id="box-info" open>
     <summary><h2>3. Thông tin bài</h2></summary>
     <div class="body">
       <div class="row">
@@ -139,69 +330,114 @@ textarea.wrap{white-space:pre-wrap}
       </div>
       <label class="f">Tên bài (chữ Hán)<input id="ten" class="zh" placeholder="你家有几口人？"></label>
       <div class="row">
-        <label class="f">Pinyin<input id="pinyin"></label>
-        <label class="f">Nghĩa tiếng Việt<input id="nghia"></label>
+        <label class="f">Pinyin<input id="pinyin" placeholder="Nǐ jiā yǒu jǐ kǒu rén?"></label>
+        <label class="f">Nghĩa tiếng Việt<input id="nghia" placeholder="Nhà bạn có mấy người?"></label>
       </div>
       <label class="f">Giới thiệu ngắn<textarea id="gioithieu" class="wrap" style="min-height:64px"></textarea></label>
       <div class="row">
         <label class="f">Ảnh bìa<select id="anhbia"></select></label>
-        <label class="f">Slide thuyết trình<input id="slideInfo" readonly placeholder="Chưa có, kéo file .pptx vào mục 1"></label>
+        <label class="f">Slide thuyết trình<input id="slideInfo" readonly placeholder="Chưa có, kéo file .pptx hoặc .pdf vào mục 1"></label>
       </div>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-muctieu">
     <summary><h2>4. Mục tiêu và tiến trình</h2><span class="cnt" id="c-muctieu"></span></summary>
     <div class="body">
       <p class="hint">Mỗi dòng một ý. Viết <code>**chữ**</code> để in đậm.</p>
-      <label class="f">Kiến thức<textarea id="kienthuc" class="wrap" style="min-height:70px"></textarea></label>
-      <label class="f">Năng lực<textarea id="nangluc" class="wrap" style="min-height:70px"></textarea></label>
-      <label class="f">Phẩm chất<textarea id="phamchat" class="wrap" style="min-height:70px"></textarea></label>
+      <label class="f">Kiến thức<textarea id="kienthuc" class="wrap" style="min-height:70px" placeholder="Từ vựng về thành viên gia đình, nghề nghiệp, tuổi."></textarea></label>
+      <label class="f">Năng lực<textarea id="nangluc" class="wrap" style="min-height:70px" placeholder="Hỏi và trả lời về số người trong gia đình."></textarea></label>
+      <label class="f">Phẩm chất<textarea id="phamchat" class="wrap" style="min-height:70px" placeholder="Yêu thương, trân trọng gia đình."></textarea></label>
       <label class="f">Tiêu đề tiến trình<input id="tt-tieude" placeholder="Tiến trình dạy học (dành cho giáo viên, 45 phút)"></label>
-      <span class="fmt">Thời gian | Nội dung</span>
+      <div class="cols"><span class="req">Thời gian</span><i>|</i><span class="req">Nội dung</span></div>
       <textarea id="tientrinh" class="wrap" aria-label="Các bước tiến trình"></textarea>
+      <details class="vd"><summary>Xem ví dụ</summary><div class="in">
+        <div class="trio two">
+          <figure><figcaption>Viết trong ô</figcaption><pre class="code">5′ <b>|</b> **Khởi động.** Chiếu ảnh gia đình, hỏi 这是谁？
+15′ <b>|</b> **Từ mới.** Dạy theo 4 nhóm.</pre></figure>
+          <figure><figcaption>Học sinh thấy</figcaption><div class="screen"><div class="mk-line"><b style="color:var(--seal)">5′</b><span><b>Khởi động.</b> Chiếu ảnh gia đình, hỏi <span class="zh">这是谁？</span></span></div><div class="mk-line"><b style="color:var(--seal)">15′</b><span><b>Từ mới.</b> Dạy theo 4 nhóm.</span></div></div></figure>
+        </div>
+        <div><button class="btn sm" data-vd="tientrinh">Chèn ví dụ vào ô</button></div>
+      </div></details>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-tumoi">
     <summary><h2>5. Từ mới</h2><span class="cnt" id="c-tumoi"></span></summary>
     <div class="body">
-      <span class="fmt">Chữ Hán | Pinyin | Từ loại | Nghĩa | Nhóm | Câu ví dụ | Pinyin ví dụ | Nghĩa ví dụ | Ảnh</span>
-      <p class="hint">“Nhóm” dùng để lọc (vd. Gia đình, Nghề nghiệp). “Ảnh” là tên ảnh trong mục 9, bấm vào ảnh để chép tên.</p>
-      <textarea id="tumoi" style="min-height:200px" aria-label="Danh sách từ mới"></textarea>
+      <div class="cols"><span class="req">Chữ Hán</span><i>|</i><span class="req">Pinyin</span><i>|</i><span class="req">Từ loại</span><i>|</i><span class="req">Nghĩa</span><i>|</i><span>Nhóm</span><i>|</i><span>Câu ví dụ</span><i>|</i><span>Pinyin ví dụ</span><i>|</i><span>Nghĩa ví dụ</span><i>|</i><span>Ảnh</span><em>ô viền đậm là bắt buộc</em></div>
+      <textarea id="tumoi" style="min-height:200px" aria-label="Danh sách từ mới" placeholder="爸爸 | bàba | danh từ | bố, ba | Gia đình"></textarea>
       <div class="warns" id="w-tumoi"></div>
-      <label class="f">Cách viết (ảnh động thứ tự nét)<span class="fmt">Chữ | Tên ảnh .gif</span><textarea id="cachviet" aria-label="Cách viết"></textarea></label>
+      <details class="vd"><summary>Xem ví dụ một dòng từ mới</summary><div class="in">
+        <div class="trio two">
+          <figure><figcaption>Viết trong ô (một dòng)</figcaption><pre class="code">爸爸 <b>|</b> bàba <b>|</b> danh từ <b>|</b> bố, ba <b>|</b> Gia đình <b>|</b> 我爸爸是老师。 <b>|</b> Wǒ bàba shì lǎoshī. <b>|</b> Bố tôi là giáo viên. <b>|</b> s02_1.jpg</pre>
+            <p class="hint">“Nhóm” tạo nút lọc (Gia đình, Nghề nghiệp…). “Ảnh” là tên ảnh ở mục 9.</p></figure>
+          <figure><figcaption>Học sinh thấy</figcaption><div class="screen"><div class="mk-card">
+            <div class="mk-row"><div class="mk-cells"><span>爸</span><span>爸</span></div><i class="mk-img"></i></div>
+            <div class="mk-py">bàba<span class="mk-pos">danh từ</span></div><div><b>bố, ba</b></div>
+            <div class="mk-mute"><span class="zh" style="color:var(--ink)">我爸爸是老师。</span><br>Bố tôi là giáo viên.</div>
+            <div><span class="mk-btn o">🔊 Nghe</span> <span class="mk-btn o">✎ Cách viết</span></div></div></div></figure>
+        </div>
+        <div><button class="btn sm" data-vd="tumoi">Chèn ví dụ vào ô</button></div>
+      </div></details>
+      <label class="f">Cách viết (ảnh động thứ tự nét)
+        <div class="cols"><span class="req">Chữ</span><i>|</i><span class="req">Tên ảnh .gif</span><em>vd. 爸 | s02_2.gif</em></div>
+        <textarea id="cachviet" aria-label="Cách viết" placeholder="爸 | s02_2.gif"></textarea></label>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-nguphap">
     <summary><h2>6. Ngữ pháp</h2><span class="cnt" id="c-nguphap"></span></summary>
     <div class="body">
-      <span class="fmt">Điểm ngữ pháp | Ý nghĩa | Mẫu câu | Câu ví dụ = Nghĩa; Câu ví dụ = Nghĩa | Ghi chú</span>
+      <div class="cols"><span class="req">Điểm ngữ pháp</span><i>|</i><span class="req">Ý nghĩa</span><i>|</i><span class="req">Mẫu câu</span><i>|</i><span>Câu = Nghĩa; Câu = Nghĩa</span><i>|</i><span>Ghi chú</span></div>
       <textarea id="nguphap" style="min-height:160px" aria-label="Ngữ pháp"></textarea>
       <div class="warns" id="w-nguphap"></div>
+      <details class="vd"><summary>Xem ví dụ</summary><div class="in">
+        <div class="trio two">
+          <figure><figcaption>Viết trong ô (một dòng)</figcaption><pre class="code">几口人 <b>|</b> Hỏi số người trong gia đình <b>|</b> 你家有几口人？ → 我家有 + số + 口人。 <b>|</b> 你家有几口人？ = Nhà bạn có mấy người?; 我家有四口人。 = Nhà tôi có bốn người. <b>|</b> **几** hỏi số lượng nhỏ.</pre></figure>
+          <figure><figcaption>Học sinh thấy</figcaption><div class="screen"><div class="mk-card">
+            <div><b class="zh" style="color:var(--seal);font-size:13px">几口人</b> <b>Hỏi số người trong gia đình</b></div>
+            <div class="mk-pat">你家有几口人？ → 我家有 + số + 口人。</div>
+            <div><span class="zh">你家有几口人？</span> 🔊<br><span class="mk-mute">Nhà bạn có mấy người?</span></div>
+            <div class="mk-mute"><b style="color:var(--seal)">几</b> hỏi số lượng nhỏ.</div></div></div></figure>
+        </div>
+        <div><button class="btn sm" data-vd="nguphap">Chèn ví dụ vào ô</button></div>
+      </div></details>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-hoithoai">
     <summary><h2>7. Hội thoại</h2><span class="cnt" id="c-hoithoai"></span></summary>
     <div class="body">
-      <label class="f">Lời dẫn<input id="ht-gioithieu"></label>
-      <span class="fmt">Người nói | Câu chữ Hán | Pinyin | Nghĩa</span>
+      <label class="f">Lời dẫn<input id="ht-gioithieu" placeholder="Hai bạn xem ảnh gia đình. Luyện theo cặp."></label>
+      <div class="cols"><span class="req">Người nói</span><i>|</i><span class="req">Câu chữ Hán</span><i>|</i><span>Pinyin</span><i>|</i><span>Nghĩa</span></div>
       <textarea id="hoithoai" style="min-height:160px" aria-label="Hội thoại"></textarea>
       <div class="warns" id="w-hoithoai"></div>
+      <details class="vd"><summary>Xem ví dụ</summary><div class="in">
+        <div class="trio two">
+          <figure><figcaption>Viết trong ô</figcaption><pre class="code">A <b>|</b> 你家有几口人？ <b>|</b> Nǐ jiā yǒu jǐ kǒu rén? <b>|</b> Nhà bạn có mấy người?
+B <b>|</b> 我家有五口人。 <b>|</b> Wǒ jiā yǒu wǔ kǒu rén. <b>|</b> Nhà mình có năm người.</pre>
+            <p class="hint">Trong Word cũng có thể viết <code>A：你家有几口人？</code> mỗi câu một dòng.</p></figure>
+          <figure><figcaption>Học sinh thấy</figcaption><div class="screen">
+            <div class="mk-line"><span class="mk-who">A</span><div><span class="zh">你家有几口人？</span><br><span class="mk-py">Nǐ jiā yǒu jǐ kǒu rén?</span><br><span class="mk-mute">Nhà bạn có mấy người?</span></div></div>
+            <div class="mk-line"><span class="mk-who" style="background:var(--seal-soft);color:var(--seal)">B</span><div><span class="zh">我家有五口人。</span><br><span class="mk-py">Wǒ jiā yǒu wǔ kǒu rén.</span></div></div>
+            <span class="mk-btn">▶ Nghe cả bài</span></div></figure>
+        </div>
+        <div><button class="btn sm" data-vd="hoithoai">Chèn ví dụ vào ô</button></div>
+      </div></details>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-baitap">
     <summary><h2>8. Bài tập</h2><span class="cnt" id="c-baitap"></span></summary>
     <div class="body">
       <div class="exs" id="exs"></div>
+      <p class="hint" style="font-weight:600;color:var(--ink)">Thêm bài tập mới:</p>
       <div class="add-ex" id="addEx"></div>
     </div>
   </details>
 
-  <details class="box">
+  <details class="box" id="box-anh">
     <summary><h2>9. Ảnh</h2><span class="cnt" id="c-anh"></span></summary>
     <div class="body">
       <p class="hint">Bấm vào ảnh để chép tên, rồi dán vào cột “Ảnh” của từ mới hoặc mục Cách viết. Ảnh có viền xanh là ảnh đang dùng; chỉ ảnh đang dùng mới được lưu.</p>
@@ -211,7 +447,7 @@ textarea.wrap{white-space:pre-wrap}
 </div>
 
 <div class="preview" id="preview">
-  <div class="ph"><span>Xem trước</span><span class="sizes"><button class="btn sm" data-size="">Máy tính</button><button class="btn sm" data-size="phone">Điện thoại</button></span></div>
+  <div class="ph"><span>Xem trước · <b id="pvMau" style="color:var(--ink)"></b></span><span class="sizes"><button class="btn sm" data-size="">Máy tính</button><button class="btn sm" data-size="phone">Điện thoại</button></span></div>
   <iframe id="frame" title="Xem trước bài học"></iframe>
 </div>
 </div>

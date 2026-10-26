@@ -51,8 +51,8 @@ footer a{color:var(--jade)}
 <script>
 // Danh sách bài nằm trong danh-sach.js, do trang soạn bài (soan-bai.html) cập nhật.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-// Slide .pptx được mở trình chiếu bằng Office Online, không phải tải về máy.
-const slideViewer = l => 'https://view.officeapps.live.com/op/view.aspx?src=' +
+// Slide .pptx được mở trình chiếu bằng Office Online, không phải tải về máy; slide .pdf thì trình duyệt mở thẳng.
+const slideViewer = l => /\.pdf$/i.test(l.slide) ? `${l.dir}/${l.slide}` : 'https://view.officeapps.live.com/op/view.aspx?src=' +
   encodeURIComponent(new URL(`${l.dir}/${l.slide}`, location.href).href);
 document.getElementById('lessons').innerHTML = [...(window.DANH_SACH || [])].sort((a, b) => a.so - b.so).map(l => `
   <li class="lesson">
