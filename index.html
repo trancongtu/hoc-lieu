@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tiếng Trung HSK 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
+<style>
+/* Layout: a single-column lesson index; one row per lesson, its three resources side by side. */
+:root{
+  --paper:#f4f7f5; --surface:#ffffff; --ink:#18221e; --muted:#5a6a63; --line:#d6e0da;
+  --jade:#16765b; --jade-soft:#e1f0ea; --seal:#bf3a29; --grid:#e5b4ab;
+  --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
+  --f-body:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
+  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --grid:#62413b; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding-block:36px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--seal);font-weight:600}
+h1{font-family:var(--f-han);font-size:clamp(2rem,6vw,2.8rem);margin:6px 0 4px;line-height:1.2}
+.sub{color:var(--muted);margin:0 0 28px}
+.lessons{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.lesson{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;align-items:center}
+.num{grid-row:span 2;width:56px;height:56px;display:grid;place-items:center;font-weight:700;font-size:1.3rem;color:var(--seal);border:1.5px solid var(--grid);font-variant-numeric:tabular-nums}
+.name{font-family:var(--f-han);font-size:1.25rem;font-weight:700}
+.name small{font-family:var(--f-body);font-weight:400;font-size:.9rem;color:var(--muted);margin-left:8px}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{text-decoration:none;font-size:.9rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1px solid var(--line);color:var(--ink)}
+.links a.main{background:var(--jade);border-color:var(--jade);color:var(--surface)}
+.links a:hover{border-color:var(--jade)}
+.links a:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
+footer{margin-top:32px;color:var(--muted);font-size:.85rem}
+@media (max-width:520px){.lesson{grid-template-columns:1fr}.num{grid-row:auto;width:44px;height:44px;font-size:1.1rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Học liệu lớp tiếng Trung</div>
+  <h1>汉语 HSK 1</h1>
+  <p class="sub">Giáo án điện tử, slide bài giảng và phiếu bài tập theo từng bài.</p>
+  <ul class="lessons" id="lessons"></ul>
+  <footer>Mở “Giáo án điện tử” để học từ mới, nghe phát âm và làm bài tập tự chấm ngay trên điện thoại.</footer>
+</div>
+<script>
+// Thêm bài mới: chép một dòng bên dưới, sửa số bài, tên bài và tên thư mục.
+const LESSONS = [
+  {n: 10, zh: '你家有几口人？', vi: 'Nhà bạn có mấy người?', dir: 'bai10'},
+];
+document.getElementById('lessons').innerHTML = LESSONS.map(l => `
+  <li class="lesson">
+    <span class="num">${l.n}</span>
+    <div class="name">${l.zh}<small>${l.vi}</small></div>
+    <div class="links">
+      <a class="main" href="${l.dir}/">Giáo án điện tử</a>
+      <a href="${l.dir}/${l.dir}-slide.pptx">Tải slide (.pptx)</a>
+      <a href="${l.dir}/${l.dir}-bai-tap.docx">Tải phiếu bài tập (.docx)</a>
+    </div>
+  </li>`).join('');
+</script>
+</body>
+</html>
