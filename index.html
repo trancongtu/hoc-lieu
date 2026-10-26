@@ -40,9 +40,9 @@ footer{margin-top:32px;color:var(--muted);font-size:.85rem}
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Học liệu lớp tiếng Trung</div>
+  <div class="eyebrow">Tài liệu lớp tiếng Trung</div>
   <h1>汉语 HSK 1</h1>
-  <p class="sub">Giáo án điện tử, slide bài giảng và phiếu bài tập theo từng bài.</p>
+  <p class="sub">Giáo án điện tử, bài thuyết trình và bài tập theo từng bài.</p>
   <ul class="lessons" id="lessons"></ul>
   <footer>Mở “Giáo án điện tử” để học từ mới, nghe phát âm và làm bài tập tự chấm ngay trên điện thoại.</footer>
 </div>
@@ -51,14 +51,17 @@ footer{margin-top:32px;color:var(--muted);font-size:.85rem}
 const LESSONS = [
   {n: 10, zh: '你家有几口人？', vi: 'Nhà bạn có mấy người?', dir: 'bai10'},
 ];
+// Slide .pptx được mở trình chiếu bằng Office Online, không phải tải về máy.
+const slideViewer = dir => 'https://view.officeapps.live.com/op/view.aspx?src=' +
+  encodeURIComponent(new URL(`${dir}/${dir}-slide.pptx`, location.href).href);
 document.getElementById('lessons').innerHTML = LESSONS.map(l => `
   <li class="lesson">
     <span class="num">${l.n}</span>
     <div class="name">${l.zh}<small>${l.vi}</small></div>
     <div class="links">
       <a class="main" href="${l.dir}/">Giáo án điện tử</a>
-      <a href="${l.dir}/${l.dir}-slide.pptx">Tải slide (.pptx)</a>
-      <a href="${l.dir}/${l.dir}-bai-tap.docx">Tải phiếu bài tập (.docx)</a>
+      <a href="${slideViewer(l.dir)}" target="_blank" rel="noopener">Thuyết trình</a>
+      <a href="${l.dir}/#bai-tap">Bài tập</a>
     </div>
   </li>`).join('');
 </script>
