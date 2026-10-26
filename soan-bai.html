@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soạn bài</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
+<style>
+/* Layout: editor column on the left, live lesson preview pinned on the right; stacks on narrow screens. */
+:root{
+  --paper:#f4f7f5; --surface:#ffffff; --ink:#18221e; --muted:#5a6a63; --line:#d6e0da;
+  --jade:#16765b; --jade-soft:#e1f0ea; --seal:#bf3a29; --warn:#9a5b00; --warn-soft:#fdf3e1;
+  --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
+  --f-body:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
+  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
+  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --warn:#f0b35a; --warn-soft:#33270f; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
+h1,h2,h3{margin:0;line-height:1.25}
+
+.bar{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar .in{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px max(16px,env(safe-area-inset-left,0px))}
+.bar h1{font-size:1.05rem;margin-right:auto}
+.bar h1 a{color:var(--jade);text-decoration:none;font-weight:500;font-size:.9rem;margin-right:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:500;font-size:.9rem;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--jade);color:var(--jade)}
+.btn.primary{background:var(--jade);border-color:var(--jade);color:var(--surface)}
+.btn.primary:hover{color:var(--surface);filter:brightness(1.08)}
+.btn.sm{padding:4px 9px;font-size:.82rem}
+.btn.danger:hover{border-color:var(--seal);color:var(--seal)}
+select.in-sel{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px max(16px,env(safe-area-inset-left,0px)) 40px}
+.editor{display:grid;gap:14px;align-content:start;min-width:0}
+.preview{position:sticky;top:64px;height:calc(100vh - 80px);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column}
+.preview .ph{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.preview iframe{flex:1;border:0;width:100%;background:var(--paper)}
+.ph .sizes{display:flex;gap:4px}
+.preview.phone iframe{width:390px;max-width:100%;margin:0 auto;border-inline:1px solid var(--line)}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}.preview{position:relative;top:0;height:80vh}}
+
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.box>summary{list-style:none;padding:12px 16px;display:flex;align-items:baseline;gap:10px;cursor:pointer}
+.box>summary::-webkit-details-marker{display:none}
+.box>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+.box[open]>summary::before{transform:rotate(90deg)}
+.box>summary h2{font-size:1rem}
+.box>summary .cnt{margin-left:auto;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.box .body{padding:0 16px 16px;display:grid;gap:10px}
+.hint{font-size:.83rem;color:var(--muted)}
+.hint code,.fmt{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;background:var(--jade-soft);color:var(--ink);border-radius:5px;padding:1px 5px}
+.fmt{display:block;padding:6px 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+label.f{display:grid;gap:3px;font-size:.85rem;font-weight:500}
+label.f input,label.f select,textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--paper);font-weight:400;font-size:.95rem;width:100%}
+textarea{font-family:var(--f-han),var(--f-body);min-height:110px;resize:vertical;line-height:1.6;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+textarea.wrap{white-space:pre-wrap}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.warns{font-size:.83rem;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px;display:grid;gap:2px}
+.warns:empty{display:none}
+
+.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--jade);background:var(--jade-soft)}
+.log{font-size:.85rem;display:grid;gap:2px;text-align:left;width:100%}
+.log .ok{color:var(--jade)} .log .err{color:var(--seal)}
+
+.themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.theme{position:relative;border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;display:grid;gap:6px;background:var(--surface)}
+.theme:has(input:checked){border-color:var(--jade)}
+.theme input{position:absolute;opacity:0}
+.theme:has(input:focus-visible){outline:3px solid var(--jade);outline-offset:2px}
+.sw{height:64px;border-radius:8px;padding:8px;display:grid;align-content:space-between}
+.sw b{font-family:var(--f-han);font-size:1.3rem;line-height:1}
+.sw i{display:flex;gap:4px}
+.sw i span{height:8px;flex:1;border-radius:4px}
+.theme strong{font-size:.92rem}
+.theme small{color:var(--muted);font-size:.8rem;line-height:1.35}
+
+.exs{display:grid;gap:10px}
+.exi{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;background:var(--paper)}
+.exi .hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.exi .hd b{font-variant-numeric:tabular-nums;min-width:52px}
+.exi .hd input{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--surface)}
+.exi .hd select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--surface)}
+.add-ex{display:flex;flex-wrap:wrap;gap:6px}
+
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.gallery button{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:4px;display:grid;gap:2px;font-size:.72rem;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;background:#fff}
+.gallery button.used{border-color:var(--jade)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:.92rem;z-index:20;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<div class="bar"><div class="in">
+  <h1><a href="./">← Mục lục</a>Soạn bài</h1>
+  <select class="in-sel" id="pick" aria-label="Chọn bài để sửa"></select>
+  <button class="btn primary" id="save">Lưu vào thư mục web</button>
+  <button class="btn" id="zip">Tải gói .zip</button>
+</div></div>
+
+<div class="layout">
+<div class="editor">
+
+  <details class="box" open>
+    <summary><h2>1. Nạp dữ liệu từ file</h2></summary>
+    <div class="body">
+      <div class="drop" id="drop">
+        <div><b>Kéo thả file vào đây</b> hoặc <button class="btn sm" id="pickFile">Chọn file</button></div>
+        <div class="hint">Word (.docx) soạn theo <a href="khung/mau-soan-bai.docx">mẫu Word</a> · Slide (.pptx): lấy ảnh và dùng làm bài thuyết trình · Ảnh (.jpg, .png, .gif)</div>
+        <input type="file" id="file" multiple accept=".docx,.pptx,image/*" hidden>
+        <div class="log" id="log"></div>
+      </div>
+      <p class="hint">Có thể dán thẳng bảng từ Word hoặc Excel vào từng ô bên dưới, các cột sẽ tự tách bằng dấu <code>|</code>.</p>
+    </div>
+  </details>
+
+  <details class="box" open>
+    <summary><h2>2. Mẫu giao diện</h2></summary>
+    <div class="body"><div class="themes" id="themes"></div></div>
+  </details>
+
+  <details class="box" open>
+    <summary><h2>3. Thông tin bài</h2></summary>
+    <div class="body">
+      <div class="row">
+        <label class="f">Bài số<input id="so" type="number" min="1" inputmode="numeric"></label>
+        <label class="f">Thư mục<input id="dir" placeholder="bai11" spellcheck="false"></label>
+        <label class="f">Cấp độ<input id="cap" placeholder="Tiếng Trung HSK 1"></label>
+      </div>
+      <label class="f">Tên bài (chữ Hán)<input id="ten" class="zh" placeholder="你家有几口人？"></label>
+      <div class="row">
+        <label class="f">Pinyin<input id="pinyin"></label>
+        <label class="f">Nghĩa tiếng Việt<input id="nghia"></label>
+      </div>
+      <label class="f">Giới thiệu ngắn<textarea id="gioithieu" class="wrap" style="min-height:64px"></textarea></label>
+      <div class="row">
+        <label class="f">Ảnh bìa<select id="anhbia"></select></label>
+        <label class="f">Slide thuyết trình<input id="slideInfo" readonly placeholder="Chưa có, kéo file .pptx vào mục 1"></label>
+      </div>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>4. Mục tiêu và tiến trình</h2><span class="cnt" id="c-muctieu"></span></summary>
+    <div class="body">
+      <p class="hint">Mỗi dòng một ý. Viết <code>**chữ**</code> để in đậm.</p>
+      <label class="f">Kiến thức<textarea id="kienthuc" class="wrap" style="min-height:70px"></textarea></label>
+      <label class="f">Năng lực<textarea id="nangluc" class="wrap" style="min-height:70px"></textarea></label>
+      <label class="f">Phẩm chất<textarea id="phamchat" class="wrap" style="min-height:70px"></textarea></label>
+      <label class="f">Tiêu đề tiến trình<input id="tt-tieude" placeholder="Tiến trình dạy học (dành cho giáo viên, 45 phút)"></label>
+      <span class="fmt">Thời gian | Nội dung</span>
+      <textarea id="tientrinh" class="wrap" aria-label="Các bước tiến trình"></textarea>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>5. Từ mới</h2><span class="cnt" id="c-tumoi"></span></summary>
+    <div class="body">
+      <span class="fmt">Chữ Hán | Pinyin | Từ loại | Nghĩa | Nhóm | Câu ví dụ | Pinyin ví dụ | Nghĩa ví dụ | Ảnh</span>
+      <p class="hint">“Nhóm” dùng để lọc (vd. Gia đình, Nghề nghiệp). “Ảnh” là tên ảnh trong mục 9, bấm vào ảnh để chép tên.</p>
+      <textarea id="tumoi" style="min-height:200px" aria-label="Danh sách từ mới"></textarea>
+      <div class="warns" id="w-tumoi"></div>
+      <label class="f">Cách viết (ảnh động thứ tự nét)<span class="fmt">Chữ | Tên ảnh .gif</span><textarea id="cachviet" aria-label="Cách viết"></textarea></label>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>6. Ngữ pháp</h2><span class="cnt" id="c-nguphap"></span></summary>
+    <div class="body">
+      <span class="fmt">Điểm ngữ pháp | Ý nghĩa | Mẫu câu | Câu ví dụ = Nghĩa; Câu ví dụ = Nghĩa | Ghi chú</span>
+      <textarea id="nguphap" style="min-height:160px" aria-label="Ngữ pháp"></textarea>
+      <div class="warns" id="w-nguphap"></div>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>7. Hội thoại</h2><span class="cnt" id="c-hoithoai"></span></summary>
+    <div class="body">
+      <label class="f">Lời dẫn<input id="ht-gioithieu"></label>
+      <span class="fmt">Người nói | Câu chữ Hán | Pinyin | Nghĩa</span>
+      <textarea id="hoithoai" style="min-height:160px" aria-label="Hội thoại"></textarea>
+      <div class="warns" id="w-hoithoai"></div>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>8. Bài tập</h2><span class="cnt" id="c-baitap"></span></summary>
+    <div class="body">
+      <div class="exs" id="exs"></div>
+      <div class="add-ex" id="addEx"></div>
+    </div>
+  </details>
+
+  <details class="box">
+    <summary><h2>9. Ảnh</h2><span class="cnt" id="c-anh"></span></summary>
+    <div class="body">
+      <p class="hint">Bấm vào ảnh để chép tên, rồi dán vào cột “Ảnh” của từ mới hoặc mục Cách viết. Ảnh có viền xanh là ảnh đang dùng; chỉ ảnh đang dùng mới được lưu.</p>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </details>
+</div>
+
+<div class="preview" id="preview">
+  <div class="ph"><span>Xem trước</span><span class="sizes"><button class="btn sm" data-size="">Máy tính</button><button class="btn sm" data-size="phone">Điện thoại</button></span></div>
+  <iframe id="frame" title="Xem trước bài học"></iframe>
+</div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="danh-sach.js"></script>
+<script src="khung/lib/jszip.min.js"></script>
+<script src="khung/lib/mammoth.browser.min.js"></script>
+<script src="khung/soan-bai.js"></script>
+</body>
+</html>
