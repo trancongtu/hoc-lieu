@@ -440,6 +440,14 @@ $('#qrCopy').addEventListener('click', async () => {
 });
 
 /* ---------- section tabs ---------- */
+// Khung xem trước (srcdoc) lấy địa chỉ của trang soạn bài làm gốc: link "#tu-moi" sẽ mở cả trang soạn bài vào khung.
+// Nên ở đó chỉ cuộn tới mục, không chuyển trang.
+if (preview) document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]'); if (!a) return;
+  e.preventDefault();
+  const t = document.getElementById(a.getAttribute('href').slice(1));
+  if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'});
+});
 const links = $$('nav.tabs a');
 const io = new IntersectionObserver(es => es.forEach(en => {
   if (en.isIntersecting) links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id));
