@@ -105,7 +105,7 @@ const DEMO = {
     web: `<div class="mk-gal"><span class="on"><i></i>s02_1.jpg</span><span><i class="gif">爸</i>s02_2.gif</span><span><i></i>s03_1.jpg</span><span><i></i>s03_2.jpg</span></div>
       <div class="mk-mute">Trên mục lục có nút</div><span class="mk-btn o">Thuyết trình</span>`,
     tips: ['<b>.pptx</b>: mọi ảnh trong slide được tách ra và đặt tên theo trang: <b>s02_1.jpg</b> là trang 2, ảnh thứ 1. Ảnh động .gif (thứ tự nét) dùng ở mục Cách viết.',
-      '<b>.pdf</b> (slide đã xuất ra PDF): dùng làm bài thuyết trình, không tách được ảnh. Muốn lấy ảnh thì nạp file .pptx gốc.',
+      '<b>.pdf</b> (giáo trình, slide đã xuất ra PDF): tự lấy số bài, tên bài, pinyin và các dòng từ vựng dạng <b>píngguǒ (n) táo</b>; trang đầu làm ảnh bìa. Chữ nằm trong ảnh thì không đọc được, cần điền tay.',
       'Slide được lưu kèm bài, học sinh mở bằng nút <b>Thuyết trình</b> ở trang mục lục.']},
   anh: {
     a: 'Ảnh trong máy', b: 'Gắn vào thẻ từ',
@@ -213,6 +213,7 @@ function model() {
   const tumoi = L(val('tumoi')).map((l, i) => {
     const c = C(l);
     if (c.length < 4) W.tumoi.push(`Dòng ${i + 1}: cần ít nhất 4 cột (chữ Hán | pinyin | từ loại | nghĩa).`);
+    else if (!c[0]) W.tumoi.push(`Dòng ${i + 1} (${c[1] || c[3]}): chưa có chữ Hán.`);
     const v = {w: c[0], p: c[1] || '', t: c[2] || '', m: c[3] || ''};
     if (c[4]) v.g = c[4];
     if (c[5]) v.ex = [c[5], c[6] || '', c[7] || ''];
@@ -243,7 +244,7 @@ function model() {
     return {loai: x.loai, tieude: x.tieude.trim() || LOAI[x.loai].tieude, ...d};
   }).filter(x => (x.cau || x.nhom || x.doan || []).length);
   const B = {
-    so, dir, mau: S.mau, xuat: $('#xuat').value, cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
+    so, dir, mau: S.mau, xuat: xuat(), cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
     gioithieu: val('gioithieu'), anhbia: $('#anhbia').value,
     slide: S.slideFile ? `${dir}-slide.${S.slideFile.name.split('.').pop().toLowerCase()}` : S.slideName,
     muctieu: {kienthuc: L(val('kienthuc')), nangluc: L(val('nangluc')), phamchat: L(val('phamchat'))},
@@ -266,7 +267,7 @@ function fill(B) {
   set('cachviet', Object.entries(B.cachviet || {}).map(e => J(e)).join('\n'));
   set('nguphap', (B.nguphap || []).map(g => J([g.zh, g.vi, g.pat, (g.ex || []).map(([z, v]) => v ? `${z} = ${v}` : z).join('; '), g.note])).join('\n'));
   set('ht-gioithieu', B.hoithoai?.gioithieu); set('hoithoai', (B.hoithoai?.cau || []).map(c => J(c)).join('\n'));
-  S.mau = B.mau || 'ngoc'; $('#xuat').value = B.xuat || 'full';
+  S.mau = B.mau || 'ngoc'; setXuat(B.xuat || 'full');
   S.exs = (B.baitap || []).filter(x => FX[x.loai]).map(x => ({loai: x.loai, tieude: x.tieude || '', text: FX[x.loai](x)}));
   S.slideName = B.slide || ''; S.slideFile = null;
   drawThemes(); drawExs(); drawGallery(B.anhbia || '');
@@ -294,7 +295,9 @@ function render() {
   $('#slideInfo').value = S.slideFile ? `${S.slideFile.name} (lưu thành ${B.slide})` : S.slideName;
   const used = usedImgs(B);
   $$('#gallery button').forEach(b => b.classList.toggle('used', used.has(b.dataset.n)));
-  drawSteps(B, [['box-tumoi', W.tumoi.length], ['box-nguphap', W.nguphap.length], ['box-hoithoai', W.hoithoai.length], ['box-baitap', exW]], mau);
+  const an = AN[B.xuat] || [];   // mục bị ẩn theo loại bài thì không tính lỗi
+  drawSteps(B, [['box-tumoi', W.tumoi.length], ['box-nguphap', W.nguphap.length], ['box-hoithoai', W.hoithoai.length], ['box-baitap', exW]]
+    .filter(([id]) => !an.includes(id)), mau);
   saveDraft(B);
 
   const map = {}; IMG.forEach((v, k) => map[k] = v.url);
@@ -316,7 +319,22 @@ $('#pvTrang').addEventListener('click', e => {
   const b = e.target.closest('[data-t]'); if (!b) return;
   S.pv = b.dataset.t; $$('#pvTrang button').forEach(x => x.setAttribute('aria-pressed', x === b)); render();
 });
-$('#xuat').addEventListener('change', changed);
+/* Thiết kế bài dạng: giáo trình (PDF) / bài tập (Word, nộp online) / cả hai một trang / cả hai tách riêng. */
+const AN = {giaotrinh: ['box-baitap'], baitap: ['box-muctieu', 'box-tumoi', 'box-nguphap', 'box-hoithoai']};
+const GOI = {giaotrinh: 'Giáo trình: file PDF bài giảng (hoặc .pptx để lấy ảnh).', baitap: 'Bài tập: file Word phiếu bài tập.',
+  full: 'File PDF giáo trình và file Word bài tập, kéo cùng lúc được.', rieng: 'File PDF giáo trình và file Word bài tập, kéo cùng lúc được.'};
+const xuat = () => $('input[name="xuat"]:checked')?.value || 'full';
+function setXuat(v) {
+  $$('input[name="xuat"]').forEach(r => r.checked = r.value === v);
+  document.body.dataset.loai = v; $('#napGoi').textContent = GOI[v];
+}
+$('#xuat').addEventListener('change', () => { setXuat(xuat()); changed(); });
+$('#napBia').addEventListener('click', () => $('#fileBia').click());
+$('#fileBia').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const n = await addImage(f.name, f);
+  drawGallery(n); changed(); toast(`Đã đặt “${n}” làm ảnh bìa.`);
+});
 
 /* ---------- 4 bước ở đầu trang ---------- */
 function go(id) {
@@ -466,11 +484,7 @@ async function nap(files) {
     try {
       if (ext === 'docx') { await napWord(f); NGUON.set(f.name.replace(/\s+/g, '-'), f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
       else if (ext === 'pptx') { await napSlide(f); showDemo('slide'); }
-      else if (ext === 'pdf') {
-        S.slideFile = f; showDemo('slide');
-        logFile(f.name, [{t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'},
-          {t: 'File PDF không tách được ảnh. Muốn có ảnh cho thẻ từ, hãy nạp thêm file .pptx gốc.', cls: 'warn'}]);
-      }
+      else if (ext === 'pdf') { await napPdf(f); showDemo('slide'); }
       else if (MIME[ext]) imgs.push(await addImage(f.name, f));
       else logFile(f.name, [{t: 'Bỏ qua: chỉ nhận .docx, .pptx, .pdf hoặc ảnh.', cls: 'err'}]);
     } catch (e) { logFile(f.name, [{t: `Không đọc được file: ${e.message || e}`, cls: 'err'}]); }
@@ -481,6 +495,95 @@ async function nap(files) {
     showDemo('anh');
   }
   drawGallery(); render();
+}
+/* PDF giáo trình (slide xuất ra PDF): trang đầu có 第N课, tên bài chữ Hán và pinyin; trang từ vựng có dòng
+   "píngguǒ (n) táo" hoặc "多少（pro）bao nhiêu?". Chỉ đọc được chữ có sẵn trong PDF; chữ nằm trong ảnh thì không. */
+const TU_LOAI = {n: 'danh từ', v: 'động từ', adj: 'tính từ', adv: 'phó từ', pro: 'đại từ', pron: 'đại từ', lt: 'lượng từ', m: 'lượng từ', mw: 'lượng từ',
+  num: 'số từ', prep: 'giới từ', conj: 'liên từ', part: 'trợ từ', 名: 'danh từ', 动: 'động từ', 形: 'tính từ', 副: 'phó từ', 代: 'đại từ',
+  量: 'lượng từ', 数: 'số từ', 介: 'giới từ', 连: 'liên từ', 助: 'trợ từ'};
+const PY_DAU = /[āēīōūǎěǐǒǔǖǘǚǜ]/i;
+const PY_TU = /^[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü']+( [a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü']+){0,3}$/i;
+const HAN = /^[㐀-鿿]+$/;
+const TU_DONG = /^(.{1,24}?)\s*[（(]\s*([^()（）]{1,10}?)\s*[)）]\s*[=:：]?\s*(.+)$/;
+function docGiaoTrinh(pages, tenFile) {
+  const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: []};
+  const so = p1.join(' ').match(/第\s*(\d+)\s*课/) || tenFile.match(/b[àa]i\s*(\d+)/i);
+  if (so) g.so = +so[1];
+  g.ten = p1.find(l => !/第\s*\d+\s*课|汇报人|报告人|[:：]/.test(l) && (l.match(/[㐀-鿿]/g) || []).length >= 2) || '';
+  g.pinyin = p1.find(l => PY_DAU.test(l) && !CJK.test(l) && !/[:：]/.test(l)) || '';
+  const seen = new Set();
+  pages.flat().forEach(l => {
+    const m = l.match(TU_DONG); if (!m) return;
+    const dau = m[1].trim(), pos = m[2].trim().toLowerCase();
+    const tl = TU_LOAI[pos] || (/từ$/.test(pos) ? pos : '');
+    const nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
+    if (!tl || !nghia || CJK.test(nghia)) return;
+    let w = '', p = '';
+    if (HAN.test(dau)) w = dau;
+    else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
+    else return;
+    const k = (w || p) + '|' + nghia;
+    if (!seen.has(k)) { seen.add(k); g.tumoi.push(J([w, p, tl, nghia])); }
+  });
+  return g;
+}
+async function napPdf(file) {
+  if (!window.pdfjsLib) {
+    await loadScript('khung/lib/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'khung/lib/pdf.worker.min.js';
+  }
+  const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+  // Ghép các mảnh chữ cùng độ cao thành dòng theo khoảng cách thật giữa chúng: sát nhau thì liền chữ,
+  // cách cỡ một dấu cách thì thêm dấu cách, cách xa (hai cột trên cùng hàng) thì tách thành hai dòng.
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const rows = [];
+    for (const it of (await (await pdf.getPage(i)).getTextContent()).items) {
+      if (!it.str.trim()) continue;
+      const y = it.transform[5], fs = Math.hypot(it.transform[2], it.transform[3]) || 10;
+      let r = rows.find(r => Math.abs(r.y - y) < fs * 0.4);
+      if (!r) rows.push(r = {y, parts: []});
+      r.parts.push({x: it.transform[4], w: it.width, fs, s: it.str});
+    }
+    const lines = [];
+    rows.sort((a, b) => b.y - a.y).forEach(r => {
+      let cur = '', end = null;
+      r.parts.sort((a, b) => a.x - b.x).forEach(p => {
+        const gap = end == null ? 0 : p.x - end;
+        if (end != null && gap > p.fs * 1.5) { lines.push(cur); cur = ''; }
+        else if (end != null && gap > p.fs * 0.2) cur += ' ';
+        cur += p.s; end = p.x + p.w;
+      });
+      lines.push(cur);
+    });
+    pages.push(lines.map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  }
+  S.slideFile = file;
+  const g = docGiaoTrinh(pages, file.name), got = [];
+  const dien = (id, v) => { if (v && !val(id)) { $('#' + id).value = v; return true; } };
+  if (g.so && !S.sua) { $('#so').value = g.so; $('#dir').value = 'bai' + g.so; }
+  const tt = [g.so && !S.sua && `Bài ${g.so}`, dien('ten', g.ten) && g.ten, dien('pinyin', g.pinyin) && g.pinyin].filter(Boolean);
+  if (tt.length) got.push({t: 'Thông tin bài: ' + tt.join(' · '), go: 'box-info'});
+  else if (!pages.flat().length) got.push({t: 'PDF này toàn ảnh, không có chữ để đọc. Hãy điền thông tin bài bằng tay.', cls: 'warn', go: 'box-info'});
+  if (!g.ten && pages.flat().length) got.push({t: 'Không thấy tên bài chữ Hán ở trang đầu, hãy điền tay.', cls: 'warn', go: 'box-info'});
+  if (g.tumoi.length && !val('tumoi')) {
+    $('#tumoi').value = g.tumoi.join('\n');
+    const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length;
+    got.push({t: `Từ mới: ${g.tumoi.length} từ (pinyin, từ loại, nghĩa)`, go: 'box-tumoi'});
+    if (thieu) got.push({t: `${thieu} từ có chữ Hán nằm trong ảnh nên chưa đọc được, cần điền cột chữ Hán.`, cls: 'warn', go: 'box-tumoi'});
+  } else if (g.tumoi.length) got.push({t: `Tìm được ${g.tumoi.length} từ nhưng mục Từ mới đã có sẵn nên không ghi đè.`, cls: 'warn', go: 'box-tumoi'});
+  // Trang đầu làm ảnh bìa nếu bài chưa có.
+  if (!$('#anhbia').value) {
+    const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+    const n = await addImage('bia.jpg', await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)));
+    $('#anhbia').dataset.want = n;
+    got.push({t: 'Trang đầu được dùng làm ảnh bìa (đổi được ở mục 3).', go: 'box-info'});
+  }
+  got.push({t: 'Dùng làm bài thuyết trình của bài.', go: 'box-info'});
+  logFile(file.name, got);
+  changed();
 }
 async function napSlide(file) {
   const zip = await JSZip.loadAsync(file);
@@ -1038,7 +1141,8 @@ const qrDich = l => ({
   baitap: [['', 'Bài tập', '-bai-tap']],
 }[l.xuat || 'full']);
 async function drawPubs() {
-  const box = $('#pubs');
+  const box = $('#pubs'), bang = window.CAU_HINH?.bang;
+  if (bang) { $('#xemNop').href = bang; $('#xemNop').hidden = false; }
   if (!list().length) { box.innerHTML = '<p class="hint">Chưa có bài nào được xuất.</p>'; return; }
   const draw = files => box.innerHTML = list().map(l => {
     const chua = files && !files.some(f => f.path === `${l.dir}/du-lieu.js`);

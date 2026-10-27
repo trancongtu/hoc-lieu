@@ -70,6 +70,20 @@ select.in-sel{border:1px solid var(--line);border-radius:8px;padding:7px 10px;ba
 .box>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
 .box[open]>summary::before{transform:rotate(90deg)}
 .box>summary h2{font-size:1rem}
+
+/* thiết kế bài dạng: giáo trình / bài tập / cả hai; ẩn các mục không dùng tới */
+.loai{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.loai label{position:relative;border:2px solid var(--line);border-radius:10px;padding:8px 10px 8px 34px;cursor:pointer;display:grid;gap:2px;background:var(--surface)}
+.loai input{position:absolute;left:10px;top:11px;width:16px;height:16px;accent-color:var(--jade);margin:0}
+.loai label:has(input:checked){border-color:var(--jade);background:var(--jade-soft)}
+.loai label:has(input:focus-visible){outline:3px solid var(--jade);outline-offset:2px}
+.loai b{font-size:.92rem}
+.loai small{color:var(--muted);font-size:.78rem;line-height:1.35}
+body[data-loai="giaotrinh"] #box-baitap,
+body[data-loai="baitap"] :is(#box-muctieu,#box-tumoi,#box-nguphap,#box-hoithoai){display:none}
+.f .bia{display:flex;gap:6px}
+.f .bia select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--paper);font-weight:400}
+div.f{display:grid;gap:3px;font-size:.85rem;font-weight:500}
 .box>summary .cnt{margin-left:auto;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .box>summary .cnt.warn{color:var(--warn);font-weight:600}
 .box .body{padding:0 16px 16px;display:grid;gap:10px;container-type:inline-size}
@@ -348,7 +362,7 @@ dialog.qr .seg{margin:12px 0 0}
 
 <section class="view" id="v-da-xuat" hidden>
   <div class="page">
-    <div class="page-h"><h1>Bài đã xuất</h1></div>
+    <div class="page-h"><h1>Bài đã xuất</h1><a class="btn primary" id="xemNop" target="_blank" rel="noopener" hidden>Xem bài học sinh nộp</a></div>
     <p class="hint">Các bài đang có trên trang web của lớp. Bấm <b>Mã QR</b> để tải ảnh QR, in hoặc chiếu cho học sinh quét.</p>
     <ul class="lst" id="pubs"></ul>
   </div>
@@ -358,12 +372,6 @@ dialog.qr .seg{margin:12px 0 0}
 <div class="bar"><div class="in">
   <h1>Soạn bài</h1>
   <select class="in-sel" id="pick" aria-label="Chọn bài để sửa"></select>
-  <select class="in-sel" id="xuat" aria-label="Cách xuất bài">
-    <option value="full">Xuất full (giáo trình + bài tập)</option>
-    <option value="rieng">Xuất riêng giáo trình và bài tập</option>
-    <option value="giaotrinh">Chỉ xuất giáo trình</option>
-    <option value="baitap">Chỉ xuất bài tập</option>
-  </select>
   <button class="btn primary" id="save">Đăng lên mạng</button>
   <button class="btn" id="saveLocal">Lưu vào máy</button>
   <button class="btn" id="zip">Tải gói .zip</button>
@@ -379,6 +387,18 @@ dialog.qr .seg{margin:12px 0 0}
 <div class="layout">
 <div class="editor">
 
+  <div class="box" id="box-loai">
+    <div class="body" style="padding-top:12px">
+      <h2 style="font-size:1rem">Thiết kế bài dạng</h2>
+      <div class="loai" id="xuat" role="radiogroup" aria-label="Thiết kế bài dạng">
+        <label><input type="radio" name="xuat" value="giaotrinh"><b>Giáo trình</b><small>Nạp PDF bài giảng: tự lấy số bài, tên bài, pinyin, từ vựng và ảnh bìa.</small></label>
+        <label><input type="radio" name="xuat" value="baitap"><b>Bài tập</b><small>Nạp Word phiếu bài tập. Học sinh làm trên web, điền họ tên, lớp rồi nộp.</small></label>
+        <label><input type="radio" name="xuat" value="full"><b>Cả hai, một trang</b><small>Giáo trình và bài tập chung một trang, một mã QR.</small></label>
+        <label><input type="radio" name="xuat" value="rieng"><b>Cả hai, tách riêng</b><small>Hai trang riêng, mỗi trang một mã QR.</small></label>
+      </div>
+    </div>
+  </div>
+
   <details class="box" id="box-nap" open>
     <summary><h2>1. Nạp dữ liệu từ file</h2></summary>
     <div class="body">
@@ -387,6 +407,7 @@ dialog.qr .seg{margin:12px 0 0}
           <div class="drop" id="drop">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
             <div class="big">Kéo thả file vào đây</div>
+            <div class="hint" id="napGoi"></div>
             <div><button class="btn primary sm" id="pickFile">Chọn file từ máy</button></div>
             <div class="kinds" id="kinds" role="group" aria-label="Xem ví dụ theo loại file">
               <button data-d="baitap"><b>.docx</b> phiếu bài tập</button>
@@ -434,7 +455,8 @@ dialog.qr .seg{margin:12px 0 0}
       </div>
       <label class="f">Giới thiệu ngắn<textarea id="gioithieu" class="wrap" style="min-height:64px"></textarea></label>
       <div class="row">
-        <label class="f">Ảnh bìa<select id="anhbia"></select></label>
+        <div class="f">Ảnh bìa<div class="bia"><select id="anhbia" aria-label="Ảnh bìa"></select><button class="btn sm" id="napBia" type="button">Tải ảnh lên</button></div>
+          <input type="file" id="fileBia" accept="image/*" hidden></div>
         <label class="f">Slide thuyết trình<input id="slideInfo" readonly placeholder="Chưa có, kéo file .pptx hoặc .pdf vào mục 1"></label>
       </div>
     </div>
@@ -569,6 +591,7 @@ B <b>|</b> 我家有五口人。 <b>|</b> Wǒ jiā yǒu wǔ kǒu rén. <b>|</b> 
 </dialog>
 
 <script src="danh-sach.js"></script>
+<script src="khung/cau-hinh.js"></script>
 <script src="khung/lib/qrcode.min.js"></script>
 <script src="khung/lib/jszip.min.js"></script>
 <script src="khung/lib/mammoth.browser.min.js"></script>

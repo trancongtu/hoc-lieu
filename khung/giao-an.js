@@ -208,10 +208,12 @@ if (D.length) {
 }
 
 /* ---------- exercises ---------- */
+let imLang = false;   // đang chấm cả bài khi nộp: không hiện thông báo của từng bài
 function setScore(block, ok, total) {
   const s = $('.score', block); s.textContent = `Đúng ${ok}/${total}`;
   s.classList.toggle('full', ok === total);
-  toast(ok === total ? `Tuyệt vời! Đúng cả ${total} câu.` : `Em làm đúng ${ok}/${total} câu. Xem lại các câu tô đỏ nhé.`);
+  block.dataset.ok = ok; block.dataset.total = total;
+  if (!imLang) toast(ok === total ? `Tuyệt vời! Đúng cả ${total} câu.` : `Em làm đúng ${ok}/${total} câu. Xem lại các câu tô đỏ nhé.`);
 }
 function clearMarks(block) {
   $$('li', block).forEach(li => li.classList.remove('ok', 'bad'));
@@ -340,6 +342,59 @@ EX.forEach((X, n) => {
   $('#exs').append(el);
   KIEU[X.loai](el, X, n);
 });
+
+/* ---------- nộp bài: họ tên, lớp, điểm từng bài gửi tới Google Sheet của giáo viên (khung/cau-hinh.js) ---------- */
+function nopBai(url) {
+  const box = document.createElement('div');
+  box.className = 'ex-block nop'; box.id = 'nop-bai';
+  box.innerHTML = `<header><h3>Nộp bài</h3></header>
+    <p class="sub">Làm xong các bài ở trên, điền họ tên và lớp rồi bấm <b>Nộp bài</b>. Thầy cô sẽ nhận được kết quả của em.</p>
+    <div class="nop-f"><label>Họ và tên<input id="nopTen" autocomplete="name"></label><label>Lớp<input id="nopLop" autocomplete="off"></label></div>
+    <div class="ex-actions"><button class="btn primary" id="nopBtn">Nộp bài</button></div>
+    <div class="nop-kq" id="nopKq" aria-live="polite"></div>`;
+  $('#exs').append(box);
+  try { const h = JSON.parse(localStorage.getItem('hoc-sinh') || '{}'); $('#nopTen').value = h.ten || ''; $('#nopLop').value = h.lop || ''; } catch {}
+  $('#nopBtn').addEventListener('click', async () => {
+    const ten = $('#nopTen').value.trim(), lop = $('#nopLop').value.trim();
+    if (!ten || !lop) { toast('Em điền đủ họ tên và lớp nhé.'); (ten ? $('#nopLop') : $('#nopTen')).focus(); return; }
+    if (!url) { toast('Đây là bản xem trước, học sinh nộp được trên trang thật.'); return; }
+    imLang = true; $$('#exs .chk').forEach(b => b.click()); imLang = false;
+    let dung = 0, tong = 0;
+    const ct = [], tl = [];
+    EX.forEach((X, n) => {
+      const el = $('#ex' + (n + 1)); if (!el) return;
+      if (X.loai === 'tuluan') {
+        $$('textarea', el).forEach((t, k) => tl.push(`Bài ${n + 1}.${k + 1}: ${t.value.trim() || '(bỏ trống)'}`));
+        return;
+      }
+      const ok = +el.dataset.ok || 0, total = +el.dataset.total || 0;
+      dung += ok; tong += total; ct.push(`Bài ${n + 1}: ${ok}/${total}`);
+    });
+    const btn = $('#nopBtn'); btn.disabled = true; btn.textContent = 'Đang nộp…';
+    try {
+      // Google Apps Script không trả CORS, nên gửi kiểu no-cors (không đọc được phản hồi, lỗi mạng thì vẫn bắt được).
+      await fetch(url, {method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'text/plain;charset=utf-8'},
+        body: JSON.stringify({bai: `Bài ${B.so} · ${B.ten}`, dir: B.dir || '', ten, lop, dung, tong, chitiet: ct.join('; '), tuluan: tl.join('\n')})});
+      try { localStorage.setItem('hoc-sinh', JSON.stringify({ten, lop})); } catch {}
+      const gio = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'});
+      $('#nopKq').textContent = `Đã nộp lúc ${gio}.${tong ? ` Em đúng ${dung}/${tong} câu.` : ''}`;
+      btn.textContent = 'Nộp lại';
+      toast('Đã nộp bài.');
+    } catch {
+      btn.textContent = 'Nộp bài';
+      toast('Chưa nộp được, kiểm tra mạng rồi bấm Nộp bài lại.');
+    } finally { btn.disabled = false; }
+  });
+}
+if (EX.length) {
+  if (preview) nopBai('');
+  else {
+    // Cấu hình nằm chung một file cho mọi bài, đọc lúc mở trang để bài cũ cũng dùng được.
+    const s = document.createElement('script'); s.src = '../khung/cau-hinh.js';
+    s.onload = () => { const url = window.CAU_HINH?.nop; if (url) nopBai(url); };
+    document.head.append(s);
+  }
+}
 
 /* ---------- QR ---------- */
 const dlg = $('#qrDlg');
