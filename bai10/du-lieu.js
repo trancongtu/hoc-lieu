@@ -9,7 +9,7 @@ window.BAI = {
   "nghia": "Nhà bạn có mấy người?",
   "gioithieu": "Học cách giới thiệu gia đình: có bao nhiêu người, mỗi người bao nhiêu tuổi và làm nghề gì. Chạm vào chữ Hán hoặc nút loa để nghe phát âm.",
   "anhbia": "s01_1.jpg",
-  "slide": "bai10-slide.pdf",
+  "slide": "bai10-slide.pptx",
   "muctieu": {
     "kienthuc": [
       "Từ vựng về thành viên gia đình, nghề nghiệp, tuổi.",
