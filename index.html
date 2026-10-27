@@ -3,67 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>Tiếng Trung HSK 1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
 <style>
-/* Layout: a single-column lesson index; one row per lesson, its three resources side by side. */
+/* Không có danh sách bài: học sinh chỉ mở bài bằng mã QR giáo viên phát. */
 :root{
-  --paper:#f4f7f5; --surface:#ffffff; --ink:#18221e; --muted:#5a6a63; --line:#d6e0da;
-  --jade:#16765b; --jade-soft:#e1f0ea; --seal:#bf3a29; --grid:#e5b4ab;
+  --paper:#f4f7f5; --ink:#18221e; --muted:#5a6a63; --seal:#bf3a29;
   --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
   --f-body:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){:root{
-  --paper:#111714; --surface:#19211d; --ink:#e6eee9; --muted:#9bada4; --line:#2b3832;
-  --jade:#52c49f; --jade-soft:#16302a; --seal:#ef7d6b; --grid:#62413b; color-scheme:dark}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
-.wrap{max-width:860px;margin:0 auto;padding-block:36px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (prefers-color-scheme: dark){:root{--paper:#111714; --ink:#e6eee9; --muted:#9bada4; --seal:#ef7d6b; color-scheme:dark}}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font-family:var(--f-body);line-height:1.6;text-align:center;padding:24px 16px;box-sizing:border-box}
 .eyebrow{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--seal);font-weight:600}
-h1{font-family:var(--f-han);font-size:clamp(2rem,6vw,2.8rem);margin:6px 0 4px;line-height:1.2}
-.sub{color:var(--muted);margin:0 0 28px}
-.lessons{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-.lesson{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;align-items:center}
-.num{grid-row:span 2;width:56px;height:56px;display:grid;place-items:center;font-weight:700;font-size:1.3rem;color:var(--seal);border:1.5px solid var(--grid);font-variant-numeric:tabular-nums}
-.name{font-family:var(--f-han);font-size:1.25rem;font-weight:700}
-.name small{font-family:var(--f-body);font-weight:400;font-size:.9rem;color:var(--muted);margin-left:8px}
-.links{display:flex;flex-wrap:wrap;gap:8px}
-.links a{text-decoration:none;font-size:.9rem;font-weight:500;padding:6px 12px;border-radius:8px;border:1px solid var(--line);color:var(--ink)}
-.links a.main{background:var(--jade);border-color:var(--jade);color:var(--surface)}
-.links a:hover{border-color:var(--jade)}
-.links a:focus-visible{outline:3px solid var(--jade);outline-offset:2px}
-footer{margin-top:32px;color:var(--muted);font-size:.85rem}
-footer a{color:var(--jade)}
-@media (max-width:520px){.lesson{grid-template-columns:1fr}.num{grid-row:auto;width:44px;height:44px;font-size:1.1rem}}
+h1{font-family:var(--f-han);font-size:clamp(2rem,8vw,2.8rem);margin:6px 0 8px;line-height:1.2}
+p{color:var(--muted);margin:0;max-width:34ch}
 </style>
 </head>
 <body>
-<div class="wrap">
+<main>
   <div class="eyebrow">Tài liệu lớp tiếng Trung</div>
   <h1>汉语 HSK 1</h1>
-  <p class="sub">Giáo án điện tử, bài thuyết trình và bài tập theo từng bài.</p>
-  <ul class="lessons" id="lessons"></ul>
-  <footer>Mở “Giáo án điện tử” để học từ mới, nghe phát âm và làm bài tập tự chấm ngay trên điện thoại.<br><a href="soan-bai.html">Dành cho giáo viên: soạn bài mới</a></footer>
-</div>
-<script src="danh-sach.js"></script>
-<script>
-// Danh sách bài nằm trong danh-sach.js, do trang soạn bài (soan-bai.html) cập nhật.
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-// Slide .pptx được mở trình chiếu bằng Office Online, không phải tải về máy; slide .pdf thì trình duyệt mở thẳng.
-const slideViewer = l => /\.pdf$/i.test(l.slide) ? `${l.dir}/${l.slide}` : 'https://view.officeapps.live.com/op/view.aspx?src=' +
-  encodeURIComponent(new URL(`${l.dir}/${l.slide}`, location.href).href);
-document.getElementById('lessons').innerHTML = [...(window.DANH_SACH || [])].sort((a, b) => a.so - b.so).map(l => `
-  <li class="lesson">
-    <span class="num">${esc(l.so)}</span>
-    <div class="name">${esc(l.ten)}<small>${esc(l.nghia)}</small></div>
-    <div class="links">
-      <a class="main" href="${esc(l.dir)}/">Giáo án điện tử</a>
-      ${l.slide ? `<a href="${esc(slideViewer(l))}" target="_blank" rel="noopener">Thuyết trình</a>` : ''}
-      <a href="${esc(l.dir)}/#bai-tap">Bài tập</a>
-    </div>
-  </li>`).join('');
-</script>
+  <p>Quét mã QR thầy cô phát để mở bài học.</p>
+</main>
 </body>
 </html>

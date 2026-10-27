@@ -15,10 +15,15 @@ const preview = !!window.XEM_TRUOC;
 
 document.documentElement.lang = 'vi';
 document.documentElement.dataset.mau = B.mau || 'ngoc';
-document.title = `Bài ${B.so} · ${B.ten}`;
 
-const V = B.tumoi || [], G = B.nguphap || [], D = (B.hoithoai && B.hoithoai.cau) || [], EX = B.baitap || [];
-const mt = B.muctieu || {}, plan = (B.tientrinh && B.tientrinh.buoc) || [];
+/* Cách xuất (B.xuat): full = một trang đủ cả; rieng = index.html là giáo trình, bai-tap.html là bài tập;
+   giaotrinh / baitap = chỉ một phần. window.TRANG (do bai-tap.html hoặc khung xem trước đặt) chọn trang đang mở. */
+const XUAT = B.xuat || 'full';
+const TRANG = window.TRANG || (XUAT === 'full' ? 'full' : XUAT === 'baitap' ? 'baitap' : 'giaotrinh');
+const coGT = TRANG !== 'baitap', coBT = TRANG !== 'giaotrinh';
+document.title = `Bài ${B.so} · ${B.ten}${TRANG === 'baitap' ? ' · Bài tập' : ''}`;
+const V = coGT && B.tumoi || [], G = coGT && B.nguphap || [], D = coGT && B.hoithoai && B.hoithoai.cau || [], EX = coBT && B.baitap || [];
+const mt = coGT && B.muctieu || {}, plan = coGT && B.tientrinh && B.tientrinh.buoc || [];
 const hasGoals = ['kienthuc', 'nangluc', 'phamchat'].some(k => (mt[k] || []).length) || plan.length;
 const secs = [
   hasGoals && ['muc-tieu', 'Mục tiêu'], V.length && ['tu-moi', 'Từ mới'], G.length && ['ngu-phap', 'Ngữ pháp'],
@@ -26,16 +31,23 @@ const secs = [
 ].filter(Boolean);
 const groups = [...new Set(V.map(v => v.g).filter(Boolean))];
 const chips = [V.length && `${V.length} từ mới`, G.length && `${G.length} điểm ngữ pháp`, EX.length && `${EX.length} bài tập tự chấm`].filter(Boolean);
+// Xuất riêng: thêm link sang trang còn lại (trừ khi đang xem trước trong trang soạn bài).
+const sang = XUAT !== 'rieng' || preview ? '' : TRANG === 'baitap' ? '<a href="./">← Giáo trình</a>' : (B.baitap || []).length ? '<a href="bai-tap.html">Bài tập →</a>' : '';
+/* Mã QR: [đường dẫn tương đối, tên nút, đuôi tên file ảnh] */
+const QRT = XUAT === 'full' ? [['', 'Cả bài', ''], ...(EX.length ? [['#bai-tap', 'Phần bài tập', '-bai-tap']] : [])]
+  : XUAT !== 'rieng' ? [['', TRANG === 'baitap' ? 'Bài tập' : 'Giáo trình', TRANG === 'baitap' ? '-bai-tap' : '']]
+  : TRANG === 'baitap' ? [['', 'Bài tập', '-bai-tap'], ['./', 'Giáo trình', '']]
+  : [['', 'Giáo trình', ''], ...((B.baitap || []).length ? [['bai-tap.html', 'Bài tập', '-bai-tap']] : [])];
 
 document.body.innerHTML = `
 <header class="hero"><div class="wrap">
   <div class="topbar">
-    ${preview ? '<span></span>' : '<a class="back" href="../">← Tất cả bài</a>'}
+    <span></span>
     <button class="btn" id="qrBtn">${QRI}Mã QR</button>
   </div>
   <div class="grid">
     <div>
-      <div class="eyebrow">Bài ${esc(B.so)} · ${esc(B.cap)}</div>
+      <div class="eyebrow">Bài ${esc(B.so)} · ${TRANG === 'baitap' ? 'Bài tập' : esc(B.cap)}</div>
       <h1>${esc(B.ten)}</h1>
       <div class="py-big">${esc(B.pinyin)}${B.nghia ? ' · ' + esc(B.nghia) : ''}</div>
       ${B.gioithieu ? `<p class="lead">${md(B.gioithieu)}</p>` : ''}
@@ -44,7 +56,7 @@ document.body.innerHTML = `
     ${B.anhbia ? `<figure style="margin:0"><img src="${anh(B.anhbia)}" alt="${esc(B.nghia || B.ten)}"></figure>` : ''}
   </div>
 </div></header>
-<nav class="tabs" aria-label="Các phần của bài học"><div class="wrap">${secs.map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</div></nav>
+<nav class="tabs" aria-label="Các phần của bài học"><div class="wrap">${secs.map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}${sang}</div></nav>
 <main>
 ${hasGoals ? `<section id="muc-tieu"><div class="wrap">
   <div class="sec-head"><h2>Mục tiêu bài học</h2><span class="zh">学习目标</span></div>
@@ -80,10 +92,9 @@ ${EX.length ? `<section id="bai-tap"><div class="wrap">
 <dialog class="qr" id="qrDlg" aria-labelledby="qrTitle">
   <h2 id="qrTitle">Quét mã để mở bài</h2>
   <div class="sub">Bài ${esc(B.so)} · <span class="zh">${esc(B.ten)}</span></div>
-  <div class="seg" role="group" aria-label="Mã QR dẫn tới">
-    <button data-to="" aria-pressed="true">Cả bài</button>
-    ${EX.length ? '<button data-to="#bai-tap" aria-pressed="false">Phần bài tập</button>' : ''}
-  </div>
+  ${QRT.length > 1 ? `<div class="seg" role="group" aria-label="Mã QR dẫn tới">
+    ${QRT.map(([, t], k) => `<button data-k="${k}" aria-pressed="${!k}">${t}</button>`).join('')}
+  </div>` : ''}
   <div class="qr-box"><img id="qrImg" alt="Mã QR mở bài học"></div>
   <div class="qr-link" id="qrLink"></div>
   <div class="qr-warn" id="qrWarn" hidden></div>
@@ -332,8 +343,8 @@ EX.forEach((X, n) => {
 
 /* ---------- QR ---------- */
 const dlg = $('#qrDlg');
-let qrTo = '';
-const pageUrl = () => location.href.split('#')[0] + qrTo;
+let qrK = 0;
+const pageUrl = () => { const base = location.href.split('#')[0]; return QRT[qrK][0] ? new URL(QRT[qrK][0], base).href : base; };
 function qrCanvas(url, scale, label) {
   const q = qrcode(0, 'M'); q.addData(url); q.make();
   const n = q.getModuleCount(), m = 4, size = (n + m * 2) * scale, lh = label ? Math.round(scale * 5) : 0;
@@ -360,12 +371,12 @@ $('#qrClose').addEventListener('click', () => dlg.close());
 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
 $$('.seg button', dlg).forEach(b => b.addEventListener('click', () => {
   $$('.seg button', dlg).forEach(x => x.setAttribute('aria-pressed', x === b));
-  qrTo = b.dataset.to; drawQr();
+  qrK = +b.dataset.k; drawQr();
 }));
 $('#qrSave').addEventListener('click', () => {
-  const a = document.createElement('a');
-  a.href = qrCanvas(pageUrl(), 20, `Bài ${B.so} · ${B.ten}${qrTo ? ' · Bài tập' : ''}`).toDataURL('image/png');
-  a.download = `qr-${B.dir || 'bai' + B.so}${qrTo ? '-bai-tap' : ''}.png`;
+  const a = document.createElement('a'), duoi = QRT[qrK][2];
+  a.href = qrCanvas(pageUrl(), 20, `Bài ${B.so} · ${B.ten}${duoi ? ' · Bài tập' : ''}`).toDataURL('image/png');
+  a.download = `qr-${B.dir || 'bai' + B.so}${duoi}.png`;
   document.body.append(a); a.click(); a.remove();
 });
 $('#qrCopy').addEventListener('click', async () => {

@@ -6,11 +6,13 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const BASE = new URL('.', location.href).href;
 const DRAFT = 'soan-bai-nhap';
 
-const SHELL = `<!doctype html>
+/* Trang bài học; trang = 'baitap' cho bai-tap.html khi xuất riêng giáo trình và bài tập. */
+const shell = trang => `<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>Bài học</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +20,7 @@ const SHELL = `<!doctype html>
 <link rel="stylesheet" href="../khung/giao-an.css">
 </head>
 <body>
-<script src="du-lieu.js"></script>
+${trang ? `<script>window.TRANG = '${trang}';</script>\n` : ''}<script src="du-lieu.js"></script>
 <script src="../khung/lib/qrcode.min.js"></script>
 <script src="../khung/giao-an.js"></script>
 </body>
@@ -120,7 +122,8 @@ const VD = {
 };
 
 /* ---------- state ---------- */
-const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: '', demo: 'baitap', luu: false};
+const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: '', demo: 'baitap', luu: false, pv: 'giaotrinh'};
+const NGUON = new Map();   // tên file → File Word vừa nạp, lưu kèm bài vào thư mục tai-lieu/
 const IMG = new Map();   // tên ảnh → {url, blob} cho ảnh vừa nạp
 let dirty = false;
 
@@ -240,7 +243,7 @@ function model() {
     return {loai: x.loai, tieude: x.tieude.trim() || LOAI[x.loai].tieude, ...d};
   }).filter(x => (x.cau || x.nhom || x.doan || []).length);
   const B = {
-    so, dir, mau: S.mau, cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
+    so, dir, mau: S.mau, xuat: $('#xuat').value, cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
     gioithieu: val('gioithieu'), anhbia: $('#anhbia').value,
     slide: S.slideFile ? `${dir}-slide.${S.slideFile.name.split('.').pop().toLowerCase()}` : S.slideName,
     muctieu: {kienthuc: L(val('kienthuc')), nangluc: L(val('nangluc')), phamchat: L(val('phamchat'))},
@@ -263,7 +266,7 @@ function fill(B) {
   set('cachviet', Object.entries(B.cachviet || {}).map(e => J(e)).join('\n'));
   set('nguphap', (B.nguphap || []).map(g => J([g.zh, g.vi, g.pat, (g.ex || []).map(([z, v]) => v ? `${z} = ${v}` : z).join('; '), g.note])).join('\n'));
   set('ht-gioithieu', B.hoithoai?.gioithieu); set('hoithoai', (B.hoithoai?.cau || []).map(c => J(c)).join('\n'));
-  S.mau = B.mau || 'ngoc';
+  S.mau = B.mau || 'ngoc'; $('#xuat').value = B.xuat || 'full';
   S.exs = (B.baitap || []).filter(x => FX[x.loai]).map(x => ({loai: x.loai, tieude: x.tieude || '', text: FX[x.loai](x)}));
   S.slideName = B.slide || ''; S.slideFile = null;
   drawThemes(); drawExs(); drawGallery(B.anhbia || '');
@@ -297,16 +300,23 @@ function render() {
   const map = {}; IMG.forEach((v, k) => map[k] = v.url);
   const goc = S.goc || (B.dir ? BASE + B.dir + '/anh/' : '');
   const js = o => JSON.stringify(o).replace(/</g, '\\u003c');
+  $('#pvTrang').hidden = B.xuat !== 'rieng';
+  const trang = B.xuat === 'rieng' ? S.pv : '';
   const f = $('#frame');
   let y = 0; try { y = f.contentWindow.scrollY; } catch {}
   f.onload = () => { try { f.contentWindow.scrollTo(0, y); } catch {} };
   f.srcdoc = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Ma+Shan+Zheng&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+SC:wght@500;700&family=Patrick+Hand&display=swap">
 <link rel="stylesheet" href="${BASE}khung/giao-an.css"></head><body>
-<script>window.XEM_TRUOC=1;window.ANH_MAP=${js(map)};window.ANH_GOC=${js(goc)};window.BAI=${js({...B, ten: B.ten || '(Chưa có tên bài)', so: B.so || '?'})};<\/script>
+<script>window.XEM_TRUOC=1;window.TRANG=${js(trang)};window.ANH_MAP=${js(map)};window.ANH_GOC=${js(goc)};window.BAI=${js({...B, ten: B.ten || '(Chưa có tên bài)', so: B.so || '?'})};<\/script>
 <script src="${BASE}khung/lib/qrcode.min.js"><\/script><script src="${BASE}khung/giao-an.js"><\/script></body></html>`;
 }
 $$('.ph [data-size]').forEach(b => b.addEventListener('click', () => $('#preview').classList.toggle('phone', b.dataset.size === 'phone')));
+$('#pvTrang').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]'); if (!b) return;
+  S.pv = b.dataset.t; $$('#pvTrang button').forEach(x => x.setAttribute('aria-pressed', x === b)); render();
+});
+$('#xuat').addEventListener('change', changed);
 
 /* ---------- 4 bước ở đầu trang ---------- */
 function go(id) {
@@ -454,7 +464,7 @@ async function nap(files) {
   for (const f of files) {
     const ext = f.name.split('.').pop().toLowerCase();
     try {
-      if (ext === 'docx') { await napWord(f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
+      if (ext === 'docx') { await napWord(f); NGUON.set(f.name.replace(/\s+/g, '-'), f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
       else if (ext === 'pptx') { await napSlide(f); showDemo('slide'); }
       else if (ext === 'pdf') {
         S.slideFile = f; showDemo('slide');
@@ -772,7 +782,7 @@ function loadScript(src) {
   });
 }
 async function openLesson(dir) {
-  IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear();
+  IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); NGUON.clear();
   S.sua = dir; S.cu = new Set(); S.goc = '';
   if (!dir) {
     const last = list().at(-1), so = last ? last.so + 1 : 1;
@@ -799,6 +809,9 @@ $('#pick').addEventListener('change', async e => {
 /* ---------- save ---------- */
 function ready(B) {
   const miss = [!B.so && 'Bài số', !/^[a-z0-9_-]+$/.test(B.dir) && 'Thư mục (chữ thường, không dấu, vd. bai11)', !B.ten && 'Tên bài'].filter(Boolean);
+  if (!miss.length && B.xuat !== 'giaotrinh' && B.xuat !== 'full' && !B.baitap.length) {
+    go('box-baitap'); toast('Cách xuất này cần có bài tập, nhưng mục 8 chưa có bài nào.'); return false;
+  }
   if (!miss.length) return true;
   const box = $('#so').closest('details'); box.open = true; box.scrollIntoView({behavior: 'smooth'});
   toast('Còn thiếu: ' + miss.join(', ') + '.');
@@ -807,7 +820,7 @@ function ready(B) {
 const dataJs = B => '// Dữ liệu bài học. Tạo và sửa bằng trang soan-bai.html (dành cho giáo viên).\nwindow.BAI = ' + JSON.stringify(B, null, 2) + ';\n';
 const listJs = L => '// Danh sách bài trên trang mục lục. Trang soan-bai.html tự cập nhật file này khi lưu bài.\nwindow.DANH_SACH = [\n' + L.map(x => '  ' + JSON.stringify(x)).join(',\n') + '\n];\n';
 function upsert(L, B) {
-  const e = {so: B.so, dir: B.dir, ten: B.ten, nghia: B.nghia}; if (B.slide) e.slide = B.slide;
+  const e = {so: B.so, dir: B.dir, ten: B.ten, nghia: B.nghia, xuat: B.xuat}; if (B.slide) e.slide = B.slide;
   return [...L.filter(x => x.dir !== B.dir), e].sort((a, b) => a.so - b.so);
 }
 function parseList(text) {
@@ -815,7 +828,9 @@ function parseList(text) {
   try { return m ? JSON.parse(m[1]) : list(); } catch { return list(); }
 }
 function bundle(B, L) {
-  const files = [[`${B.dir}/index.html`, SHELL], [`${B.dir}/du-lieu.js`, dataJs(B)]];
+  const files = [[`${B.dir}/index.html`, shell('')], [`${B.dir}/du-lieu.js`, dataJs(B)]];
+  if (B.xuat === 'rieng') files.push([`${B.dir}/bai-tap.html`, shell('baitap')]);
+  NGUON.forEach((f, n) => files.push([`${B.dir}/tai-lieu/${n}`, f]));
   for (const n of usedImgs(B)) { const im = IMG.get(n); if (im) files.push([`${B.dir}/anh/${n}`, im.blob]); }
   if (S.slideFile) files.push([`${B.dir}/${B.slide}`, S.slideFile]);
   const L2 = upsert(L, B);
@@ -823,7 +838,7 @@ function bundle(B, L) {
   return [files, L2];
 }
 function saved(B, L2) {
-  window.DANH_SACH = L2; S.sua = B.dir; dirty = false; S.luu = true;
+  window.DANH_SACH = L2; S.sua = B.dir; dirty = false; S.luu = true; NGUON.clear(); CAY = null;
   if (S.slideFile) { S.slideName = B.slide; S.slideFile = null; }
   drawPick();
 }
@@ -869,8 +884,9 @@ $('#zip').addEventListener('click', () => { const [B] = model(); if (ready(B)) z
 
 /* ---------- publish: commit thẳng lên repo GitHub, Pages tự cập nhật ---------- */
 const REPO = 'trancongtu/hoc-lieu', TOKEN_KEY = 'gh-token';
+const savedToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
 function token(ask) {
-  let t = ''; try { t = localStorage.getItem(TOKEN_KEY) || ''; } catch {}
+  let t = savedToken();
   if (t && !ask) return t;
   t = (prompt('Dán mã đăng bài (token GitHub) vào đây. Chỉ cần nhập một lần, trình duyệt sẽ nhớ.') || '').trim();
   if (t) try { localStorage.setItem(TOKEN_KEY, t); } catch {}
@@ -928,9 +944,161 @@ $('#save').addEventListener('click', async e => {
 });
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
 
+/* ---------- menu dọc: Danh sách bài · Soạn bài · Bài đã xuất ---------- */
+// Link và mã QR luôn trỏ tới trang trên mạng, kể cả khi mở trang này từ máy tính.
+const SITE = /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname) ? BASE : 'https://trancongtu.github.io/hoc-lieu/';
+const VIEWS = ['danh-sach', 'soan', 'da-xuat'];
+function view() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'soan';
+  VIEWS.forEach(k => $('#v-' + k).hidden = k !== v);
+  $$('.side [data-v]').forEach(a => a.setAttribute('aria-current', a.dataset.v === v ? 'page' : 'false'));
+  if (v === 'danh-sach') drawDocs(); else if (v === 'da-xuat') drawPubs();
+}
+window.addEventListener('hashchange', view);
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-sua]'); if (!b) return;
+  if (dirty && !confirm('Bài đang soạn chưa lưu sẽ bị thay thế. Tiếp tục?')) return;
+  location.hash = 'soan';
+  try { await openLesson(b.dataset.sua); } catch (err) { toast(err.message); }
+});
+
+/* Cây file của repo trên GitHub (đọc công khai; có mã đăng bài thì dùng để khỏi bị giới hạn lượt). */
+let CAY = null;
+function cay() {
+  if (!CAY) {
+    const t = savedToken();
+    CAY = fetch(`https://api.github.com/repos/${REPO}/git/trees/HEAD?recursive=1`, {headers: t ? {Authorization: 'Bearer ' + t} : {}})
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(r.status === 403 ? 'GitHub tạm khóa lượt đọc, thử lại sau ít phút.' : r.statusText)))
+      .then(j => j.tree.filter(x => x.type === 'blob'));
+    CAY.catch(() => CAY = null);
+  }
+  return CAY;
+}
+const siteUrl = p => SITE + p.split('/').map(encodeURIComponent).join('/');
+const kb = n => n > 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
+const dau = l => `<span class="num">${esc(l.so)}</span><div class="name">${esc(l.ten)}<small>${esc(l.nghia)}</small>`;
+const XUAT = {full: 'Giáo trình + bài tập', rieng: 'Giáo trình, bài tập riêng', giaotrinh: 'Chỉ giáo trình', baitap: 'Chỉ bài tập'};
+const DOC = /\.(docx?|pptx?|pdf)$/i;
+
+async function drawDocs() {
+  const box = $('#docs');
+  if (!list().length) { box.innerHTML = '<p class="hint">Chưa có bài nào.</p>'; return; }
+  let files = null, err = '';
+  box.innerHTML = '<p class="hint">Đang đọc tài liệu trên GitHub…</p>';
+  try { files = await cay(); } catch (e) { err = e.message; }
+  box.innerHTML = (err ? `<p class="hint" style="color:var(--warn)">Không đọc được GitHub: ${esc(err)}</p>` : '') + list().map(l => {
+    const fs = (files || []).filter(f => f.path.startsWith(l.dir + '/') && DOC.test(f.path) && !f.path.includes('/anh/'));
+    return `<li>${dau(l)}</div>
+      <div class="docs">${fs.length ? fs.map(f => {
+        const n = f.path.split('/').pop(), ext = n.split('.').pop().toLowerCase(), [c, t] = TAG[ext] || TAG[ext + 'x'] || ['i', 'File'];
+        return `<a class="doc" href="${esc(siteUrl(f.path))}" target="_blank" rel="noopener"${/\.pdf$/i.test(n) ? '' : ' download'}><span class="tag ${c}">${t}</span><span>${esc(n)}</span><small>${kb(f.size)}</small></a>`;
+      }).join('') : `<span class="hint">${files ? 'Chưa có tài liệu gốc trên GitHub.' : ''}</span>`}</div>
+      <div class="acts"><button class="btn sm" data-sua="${esc(l.dir)}">Sửa bài</button><a class="btn sm" href="${esc(SITE + l.dir)}/" target="_blank" rel="noopener">Xem trên web</a></div></li>`;
+  }).join('');
+}
+$('#docsReload').addEventListener('click', () => { CAY = null; drawDocs(); });
+
+/* Mã QR: [đường dẫn trong thư mục bài, tên nút, đuôi tên ảnh], khớp với QRT trong giao-an.js */
+const qrDich = l => ({
+  full: [['', 'Cả bài', ''], ['#bai-tap', 'Phần bài tập', '-bai-tap']],
+  rieng: [['', 'Giáo trình', ''], ['bai-tap.html', 'Bài tập', '-bai-tap']],
+  giaotrinh: [['', 'Giáo trình', '']],
+  baitap: [['', 'Bài tập', '-bai-tap']],
+}[l.xuat || 'full']);
+async function drawPubs() {
+  const box = $('#pubs');
+  if (!list().length) { box.innerHTML = '<p class="hint">Chưa có bài nào được xuất.</p>'; return; }
+  const draw = files => box.innerHTML = list().map(l => {
+    const chua = files && !files.some(f => f.path === `${l.dir}/du-lieu.js`);
+    return `<li>${dau(l)}${chua ? '<span class="badge warn">Chưa có trên GitHub</span>' : ''}</div>
+      <div class="hint">${XUAT[l.xuat || 'full']}${l.slide ? ' · có slide thuyết trình' : ''}</div>
+      <div class="acts"><button class="btn primary sm" data-qr="${esc(l.dir)}">Mã QR</button>
+        ${qrDich(l).map(([to, t]) => `<a class="btn sm" href="${esc(SITE + l.dir + '/' + to)}" target="_blank" rel="noopener">Mở ${t.toLowerCase()}</a>`).join('')}</div></li>`;
+  }).join('');
+  draw(null);
+  try { draw(await cay()); } catch {}
+}
+
+function qrCanvas(url, scale, label) {
+  const q = qrcode(0, 'M'); q.addData(url); q.make();
+  const n = q.getModuleCount(), m = 4, size = (n + m * 2) * scale, lh = label ? Math.round(scale * 5) : 0;
+  const c = document.createElement('canvas'); c.width = size; c.height = size + lh;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) g.fillRect((k + m) * scale, (r + m) * scale, scale, scale);
+  if (label) {
+    g.font = `600 ${Math.round(scale * 2.4)}px "Be Vietnam Pro","Noto Serif SC",sans-serif`;
+    g.textAlign = 'center'; g.fillText(label, size / 2, size + lh * 0.35, size - scale * 4);
+  }
+  return c;
+}
+const QR = {l: null, k: 0};
+const qrUrl = () => SITE + QR.l.dir + '/' + qrDich(QR.l)[QR.k][0];
+function drawQr() {
+  $('#qrImg').src = qrCanvas(qrUrl(), 10).toDataURL('image/png');
+  $('#qrLink').textContent = qrUrl();
+  $$('#qrSeg button').forEach((b, k) => b.setAttribute('aria-pressed', k === QR.k));
+}
+$('#pubs').addEventListener('click', e => {
+  const b = e.target.closest('[data-qr]'); if (!b) return;
+  QR.l = list().find(l => l.dir === b.dataset.qr); QR.k = 0;
+  const d = qrDich(QR.l);
+  $('#qrSub').textContent = `Bài ${QR.l.so} · ${QR.l.ten}`;
+  $('#qrSeg').hidden = d.length < 2;
+  $('#qrSeg').innerHTML = d.map(([, t], k) => `<button data-k="${k}">${t}</button>`).join('');
+  drawQr(); $('#qrDlg').showModal();
+});
+$('#qrSeg').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) { QR.k = +b.dataset.k; drawQr(); } });
+$('#qrClose').addEventListener('click', () => $('#qrDlg').close());
+$('#qrDlg').addEventListener('click', e => { if (e.target === $('#qrDlg')) $('#qrDlg').close(); });
+$('#qrSave').addEventListener('click', () => {
+  const duoi = qrDich(QR.l)[QR.k][2], a = document.createElement('a');
+  a.href = qrCanvas(qrUrl(), 20, `Bài ${QR.l.so} · ${QR.l.ten}${duoi ? ' · Bài tập' : ''}`).toDataURL('image/png');
+  a.download = `qr-${QR.l.dir}${duoi}.png`;
+  document.body.append(a); a.click(); a.remove();
+});
+$('#qrCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(qrUrl()); toast('Đã sao chép link.'); }
+  catch { toast('Không sao chép được, hãy chép link bên dưới mã QR.'); }
+});
+
+/* ---------- cửa vào: chỉ ai có mã đăng bài (token có quyền ghi repo) mới dùng được trang này ---------- */
+async function coQuyen(t) {
+  const r = await fetch('https://api.github.com/repos/' + REPO, {headers: {Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json'}});
+  if (r.status === 401 || r.status === 403 || r.status === 404) return false;
+  if (!r.ok) throw new Error(r.statusText);
+  return !!(await r.json()).permissions?.push;
+}
+function moCua() { $('#gate').hidden = true; $('.app').hidden = false; view(); }
+async function cua() {
+  const t = savedToken();
+  if (!t) return;
+  try {
+    if (await coQuyen(t)) return moCua();
+    $('#gateErr').textContent = 'Mã đã lưu không còn dùng được, hãy nhập mã mới.';
+    try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  } catch { $('#gateErr').textContent = 'Không kết nối được GitHub, kiểm tra mạng rồi tải lại trang.'; }
+}
+$('#gateForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const t = $('#gateTok').value.trim(); if (!t) return;
+  $('#gateBtn').disabled = true; $('#gateErr').textContent = '';
+  try {
+    if (!await coQuyen(t)) { $('#gateErr').textContent = 'Mã không đúng, đã hết hạn hoặc không có quyền đăng bài.'; return; }
+    try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+    $('#gateTok').value = ''; moCua();
+  } catch { $('#gateErr').textContent = 'Không kết nối được GitHub, kiểm tra mạng rồi thử lại.'; }
+  finally { $('#gateBtn').disabled = false; }
+});
+$('#logout').addEventListener('click', () => {
+  if (dirty && !confirm('Bài đang soạn chưa đăng. Vẫn đăng xuất?')) return;
+  try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(DRAFT); } catch {}
+  dirty = false; location.reload();
+});
+
 /* ---------- start ---------- */
 (async () => {
-  drawThemes(); drawPick(); showDemo(S.demo);
+  cua(); drawThemes(); drawPick(); showDemo(S.demo);
   const d = readDraft();
   if (d && d.dirty && d.B) {
     if (d.sua) { S.sua = d.sua; S.goc = BASE + d.sua + '/anh/'; S.cu = usedImgs(d.B); }
