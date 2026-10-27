@@ -902,12 +902,36 @@ const b64 = blob => new Promise((ok, err) => {
   const f = new FileReader(); f.onload = () => ok(f.result.slice(f.result.indexOf(',') + 1)); f.onerror = () => err(f.error); f.readAsDataURL(blob);
 });
 const utf8 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
-async function publish(B) {
+/* Một commit lên repo. lam(L, base) nhận danh-sach.js mới nhất trên repo (không dùng bản trên trang, có thể chậm vài phút)
+   và cây file hiện tại, trả về [các mục cây cần đổi, danh sách mới, lời commit] hoặc null để thôi. */
+async function ghiRepo(lam) {
   const {default_branch: br} = await gh('');
   const head = (await gh(`/git/ref/heads/${br}`)).object.sha;
   const base = (await gh(`/git/commits/${head}`)).tree.sha;
-  // Đọc danh-sach.js mới nhất trên repo, không dùng bản trên trang (có thể chậm vài phút).
   const L = parseList(utf8((await gh(`/contents/danh-sach.js?ref=${head}`)).content));
+  const r = await lam(L, base); if (!r) return null;
+  const [tree, L2, msg] = r;
+  const t = await gh('/git/trees', {method: 'POST', body: JSON.stringify({base_tree: base, tree})});
+  const c = await gh('/git/commits', {method: 'POST', body: JSON.stringify({message: msg, tree: t.sha, parents: [head]})});
+  await gh(`/git/refs/heads/${br}`, {method: 'PATCH', body: JSON.stringify({sha: c.sha})});
+  return L2;
+}
+async function thuLai(fn) {
+  for (let i = 0; ; i++) {
+    try { return await fn(); }
+    catch (err) {
+      if (err.status === 401 && i < 1 && token(true)) continue;          // mã sai hoặc hết hạn: hỏi lại
+      if (err.status === 422 && i < 2) continue;                         // có người vừa đăng cùng lúc: thử lại
+      throw err;
+    }
+  }
+}
+function loiGh(err, viec) {
+  const ma = err.status === 401 || err.status === 403 || err.status === 404;
+  toast(ma ? 'Mã đăng bài không đúng hoặc đã hết hạn. Bấm lại để nhập mã mới.' : `Không ${viec} được: ` + err.message);
+  if (ma) try { localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+const publish = B => ghiRepo(async L => {
   if (L.some(x => x.dir === B.dir) && S.sua !== B.dir && !confirm(`Thư mục ${B.dir} đã có bài. Ghi đè?`)) return null;
   const [files, L2] = bundle(B, L);
   const tree = [];
@@ -915,32 +939,26 @@ async function publish(B) {
     const body = typeof d === 'string' ? {content: d, encoding: 'utf-8'} : {content: await b64(d), encoding: 'base64'};
     tree.push({path, mode: '100644', type: 'blob', sha: (await gh('/git/blobs', {method: 'POST', body: JSON.stringify(body)})).sha});
   }
-  const t = await gh('/git/trees', {method: 'POST', body: JSON.stringify({base_tree: base, tree})});
-  const c = await gh('/git/commits', {method: 'POST', body: JSON.stringify({message: `Soạn Bài ${B.so}: ${B.ten}`, tree: t.sha, parents: [head]})});
-  await gh(`/git/refs/heads/${br}`, {method: 'PATCH', body: JSON.stringify({sha: c.sha})});
-  return L2;
-}
+  return [tree, L2, `Soạn Bài ${B.so}: ${B.ten}`];
+});
+/* Xóa cả thư mục bài (ảnh, tài liệu gốc, trang) và bỏ bài khỏi danh-sach.js. Lịch sử git vẫn giữ nên khôi phục được. */
+const xoaBai = l => ghiRepo(async (L, base) => {
+  const files = (await gh(`/git/trees/${base}?recursive=1`)).tree.filter(x => x.type === 'blob' && x.path.startsWith(l.dir + '/'));
+  const L2 = L.filter(x => x.dir !== l.dir);
+  return [[...files.map(x => ({path: x.path, mode: x.mode, type: 'blob', sha: null})),
+    {path: 'danh-sach.js', mode: '100644', type: 'blob', content: listJs(L2)}], L2, `Xóa Bài ${l.so}: ${l.ten}`];
+});
 $('#save').addEventListener('click', async e => {
   const [B] = model(); if (!ready(B)) return;
   if (!token()) return toast('Chưa có mã đăng bài nên chưa đăng được.');
   const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Đang đăng…';
   try {
-    let L2;
-    for (let i = 0; ; i++) {
-      try { L2 = await publish(B); break; }
-      catch (err) {
-        if (err.status === 401 && i < 1 && token(true)) continue;          // mã sai hoặc hết hạn: hỏi lại
-        if (err.status === 422 && i < 2) continue;                         // có người vừa đăng cùng lúc: thử lại
-        throw err;
-      }
-    }
+    const L2 = await thuLai(() => publish(B));
     if (!L2) return;
     saved(B, L2); render();
     toast(`Đã đăng Bài ${B.so}. Khoảng 1–2 phút nữa trang sẽ cập nhật.`);
-  } catch (err) {
-    toast(err.status === 401 || err.status === 403 || err.status === 404 ? 'Mã đăng bài không đúng hoặc đã hết hạn. Bấm lại để nhập mã mới.' : 'Không đăng được: ' + err.message);
-    if (err.status === 401 || err.status === 403 || err.status === 404) try { localStorage.removeItem(TOKEN_KEY); } catch {}
-  } finally { btn.disabled = false; btn.textContent = 'Đăng lên mạng'; }
+  } catch (err) { loiGh(err, 'đăng'); }
+  finally { btn.disabled = false; btn.textContent = 'Đăng lên mạng'; }
 });
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
 
@@ -993,10 +1011,24 @@ async function drawDocs() {
         const n = f.path.split('/').pop(), ext = n.split('.').pop().toLowerCase(), [c, t] = TAG[ext] || TAG[ext + 'x'] || ['i', 'File'];
         return `<a class="doc" href="${esc(siteUrl(f.path))}" target="_blank" rel="noopener"${/\.pdf$/i.test(n) ? '' : ' download'}><span class="tag ${c}">${t}</span><span>${esc(n)}</span><small>${kb(f.size)}</small></a>`;
       }).join('') : `<span class="hint">${files ? 'Chưa có tài liệu gốc trên GitHub.' : ''}</span>`}</div>
-      <div class="acts"><button class="btn sm" data-sua="${esc(l.dir)}">Sửa bài</button><a class="btn sm" href="${esc(SITE + l.dir)}/" target="_blank" rel="noopener">Xem trên web</a></div></li>`;
+      <div class="acts"><button class="btn sm" data-sua="${esc(l.dir)}">Sửa bài</button><a class="btn sm" href="${esc(SITE + l.dir)}/" target="_blank" rel="noopener">Xem trên web</a>
+        <button class="btn sm danger" data-xoa="${esc(l.dir)}">Xóa bài</button></div></li>`;
   }).join('');
 }
 $('#docsReload').addEventListener('click', () => { CAY = null; drawDocs(); });
+$('#docs').addEventListener('click', async e => {
+  const b = e.target.closest('[data-xoa]'); if (!b) return;
+  const l = list().find(x => x.dir === b.dataset.xoa); if (!l) return;
+  if (!confirm(`Xóa hẳn Bài ${l.so} · ${l.ten}?\n\nCả trang bài, ảnh và tài liệu gốc sẽ bị gỡ khỏi web. Học sinh không mở được nữa, mã QR đã phát cũng hết dùng được.`)) return;
+  b.disabled = true; b.textContent = 'Đang xóa…';
+  try {
+    const L2 = await thuLai(() => xoaBai(l));
+    window.DANH_SACH = L2; CAY = null;
+    if (S.sua === l.dir) { dirty = false; await openLesson(''); } else drawPick();
+    drawDocs();
+    toast(`Đã xóa Bài ${l.so}. Khoảng 1–2 phút nữa trang web sẽ cập nhật.`);
+  } catch (err) { loiGh(err, 'xóa'); b.disabled = false; b.textContent = 'Xóa bài'; }
+});
 
 /* Mã QR: [đường dẫn trong thư mục bài, tên nút, đuôi tên ảnh], khớp với QRT trong giao-an.js */
 const qrDich = l => ({
