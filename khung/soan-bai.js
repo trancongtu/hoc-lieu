@@ -479,6 +479,8 @@ $('#log').addEventListener('keydown', e => { const a = e.target.closest('[data-g
 async function nap(files) {
   $('#log').innerHTML = '';
   const imgs = [];
+  // PDF trước: nạp PDF bài khác sẽ mở bài mới, các file còn lại (Word, ảnh) mới vào đúng bài đó.
+  files = [...files].sort((a, b) => /\.pdf$/i.test(b.name) - /\.pdf$/i.test(a.name));
   for (const f of files) {
     const ext = f.name.split('.').pop().toLowerCase();
     try {
@@ -558,8 +560,18 @@ async function napPdf(file) {
     });
     pages.push(lines.map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean));
   }
-  S.slideFile = file;
   const g = docGiaoTrinh(pages, file.name), got = [];
+  // PDF của bài khác với bài đang mở: chuyển sang soạn bài mới để khung xem trước không còn nội dung bài cũ.
+  const dang = parseInt(val('so'), 10) || 0, coNoiDung = S.sua || ['ten', 'tumoi', 'nguphap', 'hoithoai'].some(id => val(id)) || S.exs.length;
+  if ((g.so && g.so !== dang && coNoiDung) || (!g.so && S.sua)) {
+    const ten = S.sua ? `Bài ${dang}` : 'bài đang soạn';
+    if (confirm(`${g.so ? `File này là Bài ${g.so}` : 'File này'}, khác ${ten}.\n\nOK: soạn thành bài mới từ file PDF (nội dung ${ten} trên trang sẽ được thay).\nHủy: chỉ dùng PDF làm slide cho ${ten}.`)) {
+      const loai = xuat();
+      await openLesson('');
+      setXuat(loai);
+    }
+  }
+  S.slideFile = file;
   const dien = (id, v) => { if (v && !val(id)) { $('#' + id).value = v; return true; } };
   if (g.so && !S.sua) { $('#so').value = g.so; $('#dir').value = 'bai' + g.so; }
   const tt = [g.so && !S.sua && `Bài ${g.so}`, dien('ten', g.ten) && g.ten, dien('pinyin', g.pinyin) && g.pinyin].filter(Boolean);
