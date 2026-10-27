@@ -20,6 +20,9 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--
 .eyebrow{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--seal);font-weight:600}
 h1{font-family:var(--f-han);font-size:clamp(2rem,8vw,2.8rem);margin:6px 0 8px;line-height:1.2}
 p{color:var(--muted);margin:0;max-width:34ch}
+.gv{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));text-align:center}
+.gv a{color:var(--muted);font-size:.85rem;text-decoration:underline;text-underline-offset:3px}
+.gv a:focus-visible{outline:3px solid var(--seal);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -28,5 +31,6 @@ p{color:var(--muted);margin:0;max-width:34ch}
   <h1>汉语 HSK 1</h1>
   <p>Quét mã QR thầy cô phát để mở bài học.</p>
 </main>
+<div class="gv"><a href="soan-bai.html">Giáo viên đăng nhập</a></div>
 </body>
 </html>
