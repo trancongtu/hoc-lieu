@@ -515,18 +515,20 @@ const MOC = [['tumoi', /生.*词|词.*生/], ['nguphap', /语.*法|法.*语/], [
 const soHan = l => (l.match(/[㐀-鿿]/g) || []).length;
 const boDau = l => l.replace(/^\s*(\d+\s*[.、．)]|[-–•]|=>|\(\?\)|vd\s*[:：])\s*/i, '').trim();   // "1." "- " "=> " "VD:" ở đầu dòng
 const laCau = l => soHan(l) >= 2 && !l.includes('+') && !/[|]/.test(l);
-function docGiaoTrinh(pages, tenFile) {
-  const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: [], nguphap: [], hoi: []};
+/* han: chữ Hán đọc được bằng OCR, khóa "pinyin|nghĩa" (lần đọc thứ hai, sau khi OCR). */
+function docGiaoTrinh(pages, tenFile, han = new Map()) {
+  const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: [], nguphap: [], hoi: [], tu: [], baiKhoa: []};
   const so = p1.join(' ').match(/第\s*(\d+)\s*课/) || tenFile.match(/b[àa]i\s*(\d+)/i);
   if (so) g.so = +so[1];
   g.ten = p1.find(l => !/第\s*\d+\s*课|汇报人|报告人|[:：]/.test(l) && soHan(l) >= 2) || '';
   g.pinyin = p1.find(l => PY_DAU.test(l) && !CJK.test(l) && !/[:：]/.test(l)) || '';
-  const tu = new Map();   // khóa → {w, p, tl, nghia, ex}
+  const tu = new Map();   // khóa → {w, p, tl, nghia, ex, trang}
   let phan = '', hoi = false;
   pages.forEach((ls, i) => {
     if (!i) return;
     // Trang bìa phần: vài dòng ngắn ghép lại thành 生词 / 语法 / 课文 / 练习.
     if (ls.length <= 4 && ls.every(l => l.length <= 3)) { const m = MOC.find(([, re]) => re.test(ls.join(''))); if (m) { phan = m[0]; return; } }
+    if (phan === 'baikhoa') g.baiKhoa.push(i);
     if (phan === 'nguphap') { const d = diemNguPhap(ls); if (d) g.nguphap.push(d); return; }
     const trang = [];
     hoi = false;
@@ -541,8 +543,8 @@ function docGiaoTrinh(pages, tenFile) {
         let w = '', p = '';
         if (HAN.test(dau)) w = dau; else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
         if (tl && nghia && !CJK.test(nghia) && (w || p)) {
-          const k = (w || p) + '|' + nghia;
-          if (!tu.has(k)) tu.set(k, {w, p, tl, nghia, ex: ''});
+          const k = (p || w) + '|' + nghia;
+          if (!tu.has(k)) tu.set(k, {w: w || han.get(k) || '', p, tl, nghia, ex: '', trang: i});
           trang.push(tu.get(k));
           return;
         }
@@ -555,7 +557,8 @@ function docGiaoTrinh(pages, tenFile) {
       }
     });
   });
-  g.tumoi = [...tu.values()].map(v => J([v.w, v.p, v.tl, v.nghia, '', v.ex]));
+  g.tu = [...tu.values()];
+  g.tumoi = g.tu.map(v => J([v.w, v.p, v.tl, v.nghia, '', v.ex]));
   return g;
 }
 /* Một trang ngữ pháp → dòng "điểm | ý nghĩa | mẫu câu | câu; câu | ghi chú" của ô Ngữ pháp. */
@@ -570,6 +573,54 @@ function diemNguPhap(ls) {
   const zh = [...(tieu || '').matchAll(/\[\s*([㐀-鿿]+)\s*\]/g)].map(m => m[1]).join('、') || (mau.join(' ').match(/[㐀-鿿]+/) || [''])[0];
   const vi = (tieu || '').replace(/\s*\[[^\]]*\](\s*,\s*\[[^\]]*\])*/g, '').trim();
   return J([zh || vi, vi, mau.join(' · '), cau.join('; '), ghi.map(s => /[.!?:。]$/.test(s) ? s : s + '.').join(' ')].map(x => x.replace(/\|/g, '/')));
+}
+/* OCR chữ trong ảnh của PDF: chỉ các trang có từ vựng còn thiếu chữ Hán và các trang bài khóa.
+   Chữ Hán đọc được đổi ra pinyin (pinyin-pro) rồi so với pinyin của từ, nên không cần biết chữ nằm ở đâu trên slide.
+   Thư viện và dữ liệu nhận chữ (khoảng 6 MB) tải từ CDN lúc dùng lần đầu, trình duyệt giữ lại cho lần sau. */
+const OCR_LIB = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const PINYIN_LIB = 'https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js';
+const pyBo = s => s.toLowerCase().normalize('NFC').replace(/[^a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]/g, '');
+const pyTron = s => pyBo(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
+function timHan(p, ung) {
+  const muc = pyBo(p), tron = pyTron(p);
+  // Đúng cả dấu thanh trước; bỏ dấu chỉ dùng cho từ từ hai chữ (biến điệu như yígòng), từ một chữ bỏ dấu dễ khớp nhầm.
+  return (ung.find(u => u.py === muc) || ung.find(u => u.s.length > 1 && u.tron === tron) || {}).s || '';
+}
+async function docAnh(pdf, g) {
+  const can = [...new Set([...g.tu.filter(v => !v.w).map(v => v.trang), ...g.baiKhoa])].sort((a, b) => a - b);
+  const kq = {han: new Map(), hoithoai: [], trang: can.length};
+  if (!can.length) return kq;
+  if (!window.Tesseract) { toast('Đang tải bộ đọc chữ Hán (khoảng 6 MB, chỉ lần đầu)…'); await loadScript(OCR_LIB); }
+  if (!window.pinyinPro) await loadScript(PINYIN_LIB);
+  const worker = await Tesseract.createWorker('chi_sim');
+  const ung = {};   // trang → [{s: chữ Hán, py, tron}] mọi đoạn 1–4 chữ liền nhau
+  try {
+    for (const [k, i] of can.entries()) {
+      toast(`Đang đọc chữ trong ảnh: trang ${i + 1} (${k + 1}/${can.length})…`);
+      const pg = await pdf.getPage(i + 1), vp = pg.getViewport({scale: 1600 / pg.getViewport({scale: 1}).width});
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+      const text = (await worker.recognize(c)).data.text.replace(/([㐀-鿿，。？！：、])[ \t]+(?=[㐀-鿿，。？！：、])/g, '$1');
+      ung[i] = [];
+      for (const r of text.match(/[㐀-鿿]+/g) || []) for (let n = 1; n <= 4; n++) for (let j = 0; j + n <= r.length; j++) {
+        const s = r.slice(j, j + n), py = pinyinPro.pinyin(s, {type: 'array'}).join('');
+        ung[i].push({s, py: pyBo(py), tron: pyTron(py)});
+      }
+      // Hội thoại: tách mỗi lượt "A:" "B;" thành một dòng (OCR hay dính hai bóng thoại cạnh nhau), bỏ pinyin lẫn vào.
+      if (g.baiKhoa.includes(i)) text.replace(/(?<=[㐀-鿿。？！?!，])\s*([AB甲乙])\s*[:：;；]/g, '\n$1:').split('\n').forEach(l => {
+        const m = l.trim().match(/^([A-Za-z甲乙]|[㐀-鿿]{1,3})\s*[:：;；]\s*(.*[㐀-鿿].*)$/); if (!m) return;
+        const cau = m[2].replace(/[A-Za-z0-9āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]{2,}[，,?？!！]?/g, '').replace(/\s+/g, '')
+          .replace(/([㐀-鿿])\?/g, '$1？').replace(/([㐀-鿿])!/g, '$1！').replace(/([㐀-鿿]),/g, '$1，');
+        if (soHan(cau) >= 2) kq.hoithoai.push(J([m[1].toUpperCase(), cau]));
+      });
+    }
+  } finally { await worker.terminate(); }
+  const tatCa = Object.values(ung).flat();
+  g.tu.filter(v => !v.w).forEach(v => {
+    const w = timHan(v.p, ung[v.trang] || []) || timHan(v.p, tatCa);   // ưu tiên chữ trên cùng trang với từ
+    if (w) kq.han.set(v.p + '|' + v.nghia, w);
+  });
+  return kq;
 }
 async function napPdf(file) {
   if (!window.pdfjsLib) {
@@ -602,7 +653,8 @@ async function napPdf(file) {
     });
     pages.push(lines.map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean));
   }
-  const g = docGiaoTrinh(pages, file.name), got = [];
+  let g = docGiaoTrinh(pages, file.name), ocr = null, ocrLoi = '';
+  const got = [];
   // PDF của bài khác với bài đang mở: chuyển sang soạn bài mới để khung xem trước không còn nội dung bài cũ.
   const dang = parseInt(val('so'), 10) || 0, coNoiDung = S.sua || ['ten', 'tumoi', 'nguphap', 'hoithoai'].some(id => val(id)) || S.exs.length;
   if ((g.so && g.so !== dang && coNoiDung) || (!g.so && S.sua)) {
@@ -614,6 +666,10 @@ async function napPdf(file) {
     }
   }
   S.slideFile = file;
+  if ($('#ocr').checked) {
+    try { ocr = await docAnh(pdf, g); if (ocr.han.size) g = docGiaoTrinh(pages, file.name, ocr.han); }
+    catch (e) { ocrLoi = e.message || String(e); }
+  }
   const dien = (id, v) => { if (v && !val(id)) { $('#' + id).value = v; return true; } };
   if (g.so && !S.sua) { $('#so').value = g.so; $('#dir').value = 'bai' + g.so; }
   const tt = [g.so && !S.sua && `Bài ${g.so}`, dien('ten', g.ten) && g.ten, dien('pinyin', g.pinyin) && g.pinyin].filter(Boolean);
@@ -625,7 +681,8 @@ async function napPdf(file) {
     const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length;
     const vd = g.tumoi.filter(r => r.split(' | ').length > 5).length;
     got.push({t: `Từ mới: ${g.tumoi.length} từ${vd ? `, ${vd} từ có câu ví dụ (đoán theo trang, nên xem lại)` : ''}`, go: 'box-tumoi'});
-    if (thieu) got.push({t: `${thieu} từ có chữ Hán nằm trong ảnh nên chưa đọc được, cần điền cột chữ Hán.`, cls: 'warn', go: 'box-tumoi'});
+    if (ocr && ocr.han.size) got.push({t: `Đọc chữ trong ảnh (OCR ${ocr.trang} trang): tìm được chữ Hán cho ${ocr.han.size} từ, khớp theo pinyin. Nên xem lại.`, go: 'box-tumoi'});
+    if (thieu) got.push({t: `${thieu} từ chưa có chữ Hán${ocr ? ' (OCR không đọc ra)' : ' (nằm trong ảnh)'}, cần điền tay.`, cls: 'warn', go: 'box-tumoi'});
   } else if (g.tumoi.length) got.push({t: `Tìm được ${g.tumoi.length} từ nhưng mục Từ mới đã có sẵn nên không ghi đè.`, cls: 'warn', go: 'box-tumoi'});
   if (g.nguphap.length && !val('nguphap')) {
     $('#nguphap').value = g.nguphap.join('\n');
@@ -636,7 +693,11 @@ async function napPdf(file) {
     drawExs();
     got.push({t: `Bài khóa: ${g.hoi.length} câu hỏi, thêm vào mục Bài tập${xuat() === 'giaotrinh' ? ' (chỉ hiện khi chọn Cả hai)' : ''}`, go: 'box-baitap'});
   }
-  if (pages.flat().length) got.push({t: 'Hội thoại bài khóa và bài luyện tập trong PDF là ảnh, không đọc được chữ: cần gõ vào mục Hội thoại nếu muốn có.', cls: 'warn', go: 'box-hoithoai'});
+  if (ocr && ocr.hoithoai.length >= 2 && !val('hoithoai')) {
+    $('#hoithoai').value = ocr.hoithoai.join('\n');
+    got.push({t: `Hội thoại (OCR): ${ocr.hoithoai.length} câu, chưa có pinyin và nghĩa. Nên đối chiếu lại với slide.`, cls: 'warn', go: 'box-hoithoai'});
+  } else if (pages.flat().length && !val('hoithoai')) got.push({t: 'Không đọc được hội thoại bài khóa, cần gõ vào mục Hội thoại nếu muốn có.', cls: 'warn', go: 'box-hoithoai'});
+  if (ocrLoi) got.push({t: `Không đọc được chữ trong ảnh: ${ocrLoi}. Phần chữ thường vẫn được nạp.`, cls: 'warn'});
   // Trang đầu làm ảnh bìa nếu bài chưa có.
   if (!$('#anhbia').value) {
     const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
