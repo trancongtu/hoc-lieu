@@ -498,8 +498,12 @@ async function nap(files) {
   }
   drawGallery(); render();
 }
-/* PDF giáo trình (slide xuất ra PDF): trang đầu có 第N课, tên bài chữ Hán và pinyin; trang từ vựng có dòng
-   "píngguǒ (n) táo" hoặc "多少（pro）bao nhiêu?". Chỉ đọc được chữ có sẵn trong PDF; chữ nằm trong ảnh thì không. */
+/* PDF giáo trình (slide xuất ra PDF), chia phần bằng các trang bìa phần chữ dọc (生词, 语法, 课文, 练习):
+   - trang đầu: 第N课, tên bài chữ Hán, pinyin;
+   - từ vựng: dòng "píngguǒ (n) táo" hoặc "多少（pro）bao nhiêu?", câu chữ Hán trên cùng trang làm câu ví dụ;
+   - ngữ pháp: mỗi trang một điểm (tiêu đề, mẫu câu có dấu +, giải thích, câu ví dụ);
+   - câu hỏi sau dòng 回答问题 thành bài tập "Đọc và trả lời".
+   Chỉ đọc được chữ có sẵn trong PDF; chữ nằm trong ảnh (thường là chữ Hán của từ vựng, hội thoại) thì không. */
 const TU_LOAI = {n: 'danh từ', v: 'động từ', adj: 'tính từ', adv: 'phó từ', pro: 'đại từ', pron: 'đại từ', lt: 'lượng từ', m: 'lượng từ', mw: 'lượng từ',
   num: 'số từ', prep: 'giới từ', conj: 'liên từ', part: 'trợ từ', 名: 'danh từ', 动: 'động từ', 形: 'tính từ', 副: 'phó từ', 代: 'đại từ',
   量: 'lượng từ', 数: 'số từ', 介: 'giới từ', 连: 'liên từ', 助: 'trợ từ'};
@@ -507,27 +511,65 @@ const PY_DAU = /[āēīōūǎěǐǒǔǖǘǚǜ]/i;
 const PY_TU = /^[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü']+( [a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü']+){0,3}$/i;
 const HAN = /^[㐀-鿿]+$/;
 const TU_DONG = /^(.{1,24}?)\s*[（(]\s*([^()（）]{1,10}?)\s*[)）]\s*[=:：]?\s*(.+)$/;
+const MOC = [['tumoi', /生.*词|词.*生/], ['nguphap', /语.*法|法.*语/], ['baikhoa', /课.*文|文.*课/], ['luyentap', /练.*习|习.*练/]];
+const soHan = l => (l.match(/[㐀-鿿]/g) || []).length;
+const boDau = l => l.replace(/^\s*(\d+\s*[.、．)]|[-–•]|=>|\(\?\)|vd\s*[:：])\s*/i, '').trim();   // "1." "- " "=> " "VD:" ở đầu dòng
+const laCau = l => soHan(l) >= 2 && !l.includes('+') && !/[|]/.test(l);
 function docGiaoTrinh(pages, tenFile) {
-  const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: []};
+  const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: [], nguphap: [], hoi: []};
   const so = p1.join(' ').match(/第\s*(\d+)\s*课/) || tenFile.match(/b[àa]i\s*(\d+)/i);
   if (so) g.so = +so[1];
-  g.ten = p1.find(l => !/第\s*\d+\s*课|汇报人|报告人|[:：]/.test(l) && (l.match(/[㐀-鿿]/g) || []).length >= 2) || '';
+  g.ten = p1.find(l => !/第\s*\d+\s*课|汇报人|报告人|[:：]/.test(l) && soHan(l) >= 2) || '';
   g.pinyin = p1.find(l => PY_DAU.test(l) && !CJK.test(l) && !/[:：]/.test(l)) || '';
-  const seen = new Set();
-  pages.flat().forEach(l => {
-    const m = l.match(TU_DONG); if (!m) return;
-    const dau = m[1].trim(), pos = m[2].trim().toLowerCase();
-    const tl = TU_LOAI[pos] || (/từ$/.test(pos) ? pos : '');
-    const nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
-    if (!tl || !nghia || CJK.test(nghia)) return;
-    let w = '', p = '';
-    if (HAN.test(dau)) w = dau;
-    else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
-    else return;
-    const k = (w || p) + '|' + nghia;
-    if (!seen.has(k)) { seen.add(k); g.tumoi.push(J([w, p, tl, nghia])); }
+  const tu = new Map();   // khóa → {w, p, tl, nghia, ex}
+  let phan = '', hoi = false;
+  pages.forEach((ls, i) => {
+    if (!i) return;
+    // Trang bìa phần: vài dòng ngắn ghép lại thành 生词 / 语法 / 课文 / 练习.
+    if (ls.length <= 4 && ls.every(l => l.length <= 3)) { const m = MOC.find(([, re]) => re.test(ls.join(''))); if (m) { phan = m[0]; return; } }
+    if (phan === 'nguphap') { const d = diemNguPhap(ls); if (d) g.nguphap.push(d); return; }
+    const trang = [];
+    hoi = false;
+    ls.forEach(l => {
+      if (/回答问题/.test(l)) { hoi = true; return; }
+      if (hoi && laCau(l)) { g.hoi.push(boDau(l.replace(/^\d+\s*、/, ''))); return; }
+      const m = l.match(TU_DONG);
+      if (m && phan !== 'luyentap') {
+        const dau = m[1].trim(), pos = m[2].trim().toLowerCase();
+        const tl = TU_LOAI[pos] || (/từ$/.test(pos) ? pos : '');
+        const nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
+        let w = '', p = '';
+        if (HAN.test(dau)) w = dau; else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
+        if (tl && nghia && !CJK.test(nghia) && (w || p)) {
+          const k = (w || p) + '|' + nghia;
+          if (!tu.has(k)) tu.set(k, {w, p, tl, nghia, ex: ''});
+          trang.push(tu.get(k));
+          return;
+        }
+      }
+      // Câu ví dụ chữ Hán: gán cho từ trên cùng trang có chữ Hán nằm trong câu, không thì từ đầu tiên còn thiếu ví dụ.
+      const s = boDau(l);
+      if (trang.length && laCau(s) && /[。？！?!]$/.test(s)) {
+        const v = trang.find(v => v.w && s.includes(v.w) && !v.ex) || trang.find(v => !v.ex);
+        if (v) v.ex = s;
+      }
+    });
   });
+  g.tumoi = [...tu.values()].map(v => J([v.w, v.p, v.tl, v.nghia, '', v.ex]));
   return g;
+}
+/* Một trang ngữ pháp → dòng "điểm | ý nghĩa | mẫu câu | câu; câu | ghi chú" của ô Ngữ pháp. */
+const VIET = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+function diemNguPhap(ls) {
+  ls = ls.filter(l => !/^từ vựng$/i.test(l) && !/^\S+(\s\S+)?\s*[（(][^)）]*[)）]$/.test(l));   // bỏ dòng "ba (助)"
+  const mau = ls.filter(l => l.includes('+') && !/^=>/.test(l));
+  const tieu = ls.find(l => VIET.test(l) && soHan(l) <= 4 && !l.includes('+') && !/^(\d+\s*[.)]|[-–•]|=>|vd)/i.test(l));
+  const cau = [...new Set(ls.filter(l => !mau.includes(l) && l !== tieu).map(boDau).filter(laCau))].slice(0, 6);
+  const ghi = ls.filter(l => l !== tieu && !mau.includes(l) && VIET.test(l) && soHan(l) <= 4).map(boDau).filter(Boolean);
+  if (!tieu && !cau.length) return null;
+  const zh = [...(tieu || '').matchAll(/\[\s*([㐀-鿿]+)\s*\]/g)].map(m => m[1]).join('、') || (mau.join(' ').match(/[㐀-鿿]+/) || [''])[0];
+  const vi = (tieu || '').replace(/\s*\[[^\]]*\](\s*,\s*\[[^\]]*\])*/g, '').trim();
+  return J([zh || vi, vi, mau.join(' · '), cau.join('; '), ghi.map(s => /[.!?:。]$/.test(s) ? s : s + '.').join(' ')].map(x => x.replace(/\|/g, '/')));
 }
 async function napPdf(file) {
   if (!window.pdfjsLib) {
@@ -581,9 +623,20 @@ async function napPdf(file) {
   if (g.tumoi.length && !val('tumoi')) {
     $('#tumoi').value = g.tumoi.join('\n');
     const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length;
-    got.push({t: `Từ mới: ${g.tumoi.length} từ (pinyin, từ loại, nghĩa)`, go: 'box-tumoi'});
+    const vd = g.tumoi.filter(r => r.split(' | ').length > 5).length;
+    got.push({t: `Từ mới: ${g.tumoi.length} từ${vd ? `, ${vd} từ có câu ví dụ (đoán theo trang, nên xem lại)` : ''}`, go: 'box-tumoi'});
     if (thieu) got.push({t: `${thieu} từ có chữ Hán nằm trong ảnh nên chưa đọc được, cần điền cột chữ Hán.`, cls: 'warn', go: 'box-tumoi'});
   } else if (g.tumoi.length) got.push({t: `Tìm được ${g.tumoi.length} từ nhưng mục Từ mới đã có sẵn nên không ghi đè.`, cls: 'warn', go: 'box-tumoi'});
+  if (g.nguphap.length && !val('nguphap')) {
+    $('#nguphap').value = g.nguphap.join('\n');
+    got.push({t: `Ngữ pháp: ${g.nguphap.length} điểm (mẫu câu, câu ví dụ, giải thích); nghĩa tiếng Việt của câu ví dụ cần điền thêm`, go: 'box-nguphap'});
+  } else if (g.nguphap.length) got.push({t: `Tìm được ${g.nguphap.length} điểm ngữ pháp nhưng mục Ngữ pháp đã có sẵn nên không ghi đè.`, cls: 'warn', go: 'box-nguphap'});
+  if (g.hoi.length && !S.exs.some(x => x.loai === 'tuluan')) {
+    S.exs.push({loai: 'tuluan', tieude: 'Đọc bài khóa và trả lời câu hỏi', text: g.hoi.join('\n')});
+    drawExs();
+    got.push({t: `Bài khóa: ${g.hoi.length} câu hỏi, thêm vào mục Bài tập${xuat() === 'giaotrinh' ? ' (chỉ hiện khi chọn Cả hai)' : ''}`, go: 'box-baitap'});
+  }
+  if (pages.flat().length) got.push({t: 'Hội thoại bài khóa và bài luyện tập trong PDF là ảnh, không đọc được chữ: cần gõ vào mục Hội thoại nếu muốn có.', cls: 'warn', go: 'box-hoithoai'});
   // Trang đầu làm ảnh bìa nếu bài chưa có.
   if (!$('#anhbia').value) {
     const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
