@@ -834,7 +834,7 @@ async function write(path, data) {
   const w = await (await d.getFileHandle(parts.at(-1), {create: true})).createWritable();
   await w.write(data); await w.close();
 }
-$('#save').addEventListener('click', async () => {
+$('#saveLocal').addEventListener('click', async () => {
   const [B] = model(); if (!ready(B)) return;
   if (!window.showDirectoryPicker) { toast('Trình duyệt này không lưu thẳng vào thư mục được, mình tải gói .zip thay thế. Nên dùng Edge hoặc Chrome trên máy tính.'); return zipIt(B); }
   try {
@@ -866,6 +866,66 @@ async function zipIt(B) {
   toast(`Đã tải ${B.dir}.zip. Giải nén vào thư mục web (chép đè danh-sach.js), rồi Commit và Push bằng GitHub Desktop.`);
 }
 $('#zip').addEventListener('click', () => { const [B] = model(); if (ready(B)) zipIt(B); });
+
+/* ---------- publish: commit thẳng lên repo GitHub, Pages tự cập nhật ---------- */
+const REPO = 'trancongtu/hoc-lieu', TOKEN_KEY = 'gh-token';
+function token(ask) {
+  let t = ''; try { t = localStorage.getItem(TOKEN_KEY) || ''; } catch {}
+  if (t && !ask) return t;
+  t = (prompt('Dán mã đăng bài (token GitHub) vào đây. Chỉ cần nhập một lần, trình duyệt sẽ nhớ.') || '').trim();
+  if (t) try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+  return t;
+}
+async function gh(path, opt = {}) {
+  const r = await fetch('https://api.github.com/repos/' + REPO + path, {...opt,
+    headers: {Authorization: 'Bearer ' + token(), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json'}});
+  if (!r.ok) { const e = new Error((await r.json().catch(() => ({}))).message || r.statusText); e.status = r.status; throw e; }
+  return r.json();
+}
+const b64 = blob => new Promise((ok, err) => {
+  const f = new FileReader(); f.onload = () => ok(f.result.slice(f.result.indexOf(',') + 1)); f.onerror = () => err(f.error); f.readAsDataURL(blob);
+});
+const utf8 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, '')), c => c.charCodeAt(0)));
+async function publish(B) {
+  const {default_branch: br} = await gh('');
+  const head = (await gh(`/git/ref/heads/${br}`)).object.sha;
+  const base = (await gh(`/git/commits/${head}`)).tree.sha;
+  // Đọc danh-sach.js mới nhất trên repo, không dùng bản trên trang (có thể chậm vài phút).
+  const L = parseList(utf8((await gh(`/contents/danh-sach.js?ref=${head}`)).content));
+  if (L.some(x => x.dir === B.dir) && S.sua !== B.dir && !confirm(`Thư mục ${B.dir} đã có bài. Ghi đè?`)) return null;
+  const [files, L2] = bundle(B, L);
+  const tree = [];
+  for (const [path, d] of files) {
+    const body = typeof d === 'string' ? {content: d, encoding: 'utf-8'} : {content: await b64(d), encoding: 'base64'};
+    tree.push({path, mode: '100644', type: 'blob', sha: (await gh('/git/blobs', {method: 'POST', body: JSON.stringify(body)})).sha});
+  }
+  const t = await gh('/git/trees', {method: 'POST', body: JSON.stringify({base_tree: base, tree})});
+  const c = await gh('/git/commits', {method: 'POST', body: JSON.stringify({message: `Soạn Bài ${B.so}: ${B.ten}`, tree: t.sha, parents: [head]})});
+  await gh(`/git/refs/heads/${br}`, {method: 'PATCH', body: JSON.stringify({sha: c.sha})});
+  return L2;
+}
+$('#save').addEventListener('click', async e => {
+  const [B] = model(); if (!ready(B)) return;
+  if (!token()) return toast('Chưa có mã đăng bài nên chưa đăng được.');
+  const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Đang đăng…';
+  try {
+    let L2;
+    for (let i = 0; ; i++) {
+      try { L2 = await publish(B); break; }
+      catch (err) {
+        if (err.status === 401 && i < 1 && token(true)) continue;          // mã sai hoặc hết hạn: hỏi lại
+        if (err.status === 422 && i < 2) continue;                         // có người vừa đăng cùng lúc: thử lại
+        throw err;
+      }
+    }
+    if (!L2) return;
+    saved(B, L2); render();
+    toast(`Đã đăng Bài ${B.so}. Khoảng 1–2 phút nữa trang sẽ cập nhật.`);
+  } catch (err) {
+    toast(err.status === 401 || err.status === 403 || err.status === 404 ? 'Mã đăng bài không đúng hoặc đã hết hạn. Bấm lại để nhập mã mới.' : 'Không đăng được: ' + err.message);
+    if (err.status === 401 || err.status === 403 || err.status === 404) try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  } finally { btn.disabled = false; btn.textContent = 'Đăng lên mạng'; }
+});
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
 
 /* ---------- start ---------- */
