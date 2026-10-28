@@ -9,7 +9,7 @@ window.BAI = {
   "pinyin": "",
   "nghia": "",
   "gioithieu": "",
-  "anhbia": "s01_1.jpg",
+  "anhbia": "",
   "slide": "bai10-slide.pptx",
   "muctieu": {
     "kienthuc": [
