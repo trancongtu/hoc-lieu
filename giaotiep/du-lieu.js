@@ -3,7 +3,7 @@ window.BAI = {
   "so": 1,
   "dir": "giaotiep",
   "mau": "ngoc",
-  "xuat": "full",
+  "xuat": "giaotrinh",
   "cap": "Tiếng Trung HSK 1",
   "ten": "你好",
   "pinyin": "Nǐ hǎo",
