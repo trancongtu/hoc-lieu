@@ -100,13 +100,13 @@ const DEMO = {
       'Ô “Giao diện” ghi tên mẫu, vd. <b>Thẻ học</b>, <b>Sổ tay</b>, <b>Tạp chí</b>, <b>Bảng đen</b>.'],
     dl: [['khung/mau-soan-bai.docx', 'Tải giáo án mẫu (.docx)']]},
   slide: {
-    a: 'Slide .pptx', b: 'Ảnh được tách ra ở mục 9',
+    a: 'Slide .pptx hoặc .pdf', b: 'Thành mục Bài giảng',
     paper: `<div class="slides"><div class="slide"><i>ảnh</i><i class="gif">爸</i><span>trang 2</span></div><div class="slide"><i>ảnh</i><i>ảnh</i><span>trang 3</span></div></div>`,
     web: `<div class="mk-gal"><span class="on"><i></i>s02_1.jpg</span><span><i class="gif">爸</i>s02_2.gif</span><span><i></i>s03_1.jpg</span><span><i></i>s03_2.jpg</span></div>
-      <div class="mk-mute">Trên mục lục có nút</div><span class="mk-btn o">Thuyết trình</span>`,
-    tips: ['<b>.pptx</b>: mọi ảnh trong slide được tách ra và đặt tên theo trang: <b>s02_1.jpg</b> là trang 2, ảnh thứ 1. Ảnh động .gif (thứ tự nét) dùng ở mục Cách viết.',
-      '<b>.pdf</b> (giáo trình, slide đã xuất ra PDF): tự lấy số bài, tên bài, pinyin và các dòng từ vựng dạng <b>píngguǒ (n) táo</b>; trang đầu làm ảnh bìa. Chữ nằm trong ảnh thì không đọc được, cần điền tay.',
-      'Slide được lưu kèm bài, học sinh mở bằng nút <b>Thuyết trình</b> ở trang mục lục.']},
+      <div class="mk-mute">Trang 2 / 13 · vuốt để lật trang</div><span class="mk-btn">▶ Trình chiếu</span>`,
+    tips: ['Mỗi trang slide (.pptx) hoặc trang PDF được chụp thành ảnh và đưa vào mục <b>Bài giảng</b> của giáo trình: học sinh lật từng trang, vuốt, hoặc bấm <b>Trình chiếu</b>. Slide toàn ảnh, chữ không tách được vẫn đủ nội dung.',
+      'Chữ đọc được thì tự điền số bài, tên bài, pinyin và từ mới dạng <b>爸爸 bàba 名 Bố</b> hoặc <b>píngguǒ (n) táo</b>, câu ví dụ ngay dưới.',
+      'Ảnh trong slide cũng được tách riêng (<b>s02_1.jpg</b> là trang 2, ảnh thứ 1) để gắn vào thẻ từ; ảnh động .gif (thứ tự nét) dùng ở mục Cách viết.']},
   anh: {
     a: 'Ảnh trong máy', b: 'Gắn vào thẻ từ',
     paper: `<div class="files"><div><i></i>ba-me.jpg</div><div><i></i>con-cho.png</div><div><i style="background:#fff;border:1px solid #e5b4ab"></i>but-thuan-ba.gif</div></div>`,
@@ -122,7 +122,10 @@ const VD = {
 };
 
 /* ---------- state ---------- */
-const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: '', demo: 'baitap', luu: false, pv: 'giaotrinh'};
+const S = {mau: 'ngoc', exs: [], slideFile: null, slideName: '', goc: '', cu: new Set(), sua: '', demo: 'baitap', luu: false, pv: 'giaotrinh',
+  trang: [], xuatTay: false};   // trang: ảnh từng trang slide cho mục Bài giảng; xuatTay: thầy cô đã tự chọn dạng bài
+const NHOM = new Map();   // tên file slide (không đuôi) → {kieu, g, names}: mỗi bộ slide một nhóm ảnh trang
+const DA_NAP = new Set();   // file đã nạp (tên, cỡ, ngày sửa), nạp lại cùng file thì bỏ qua
 const NGUON = new Map();   // tên file → File Word vừa nạp, lưu kèm bài vào thư mục tai-lieu/
 const IMG = new Map();   // tên ảnh → {url, blob} cho ảnh vừa nạp
 let dirty = false;
@@ -245,7 +248,7 @@ function model() {
   }).filter(x => (x.cau || x.nhom || x.doan || []).length);
   const B = {
     so, dir, mau: S.mau, xuat: xuat(), cap: val('cap'), ten: val('ten'), pinyin: val('pinyin'), nghia: val('nghia'),
-    gioithieu: val('gioithieu'), anhbia: $('#anhbia').value,
+    gioithieu: val('gioithieu'), anhbia: $('#anhbia').value, trang: [...S.trang], hienTrang: $('#hienTrang').checked,
     slide: S.slideFile ? `${dir}-slide.${S.slideFile.name.split('.').pop().toLowerCase()}` : S.slideName,
     muctieu: {kienthuc: L(val('kienthuc')), nangluc: L(val('nangluc')), phamchat: L(val('phamchat'))},
     tientrinh: {tieude: val('tt-tieude'), buoc: L(val('tientrinh')).map(l => { const c = C(l); return c.length > 1 ? [c[0], c.slice(1).join(' | ')] : ['', c[0]]; })},
@@ -270,9 +273,10 @@ function fill(B) {
   S.mau = B.mau || 'ngoc'; setXuat(B.xuat || 'full');
   S.exs = (B.baitap || []).filter(x => FX[x.loai]).map(x => ({loai: x.loai, tieude: x.tieude || '', text: FX[x.loai](x)}));
   S.slideName = B.slide || ''; S.slideFile = null;
+  S.trang = [...(B.trang || [])]; $('#hienTrang').checked = B.hienTrang !== false;
   drawThemes(); drawExs(); drawGallery(B.anhbia || '');
 }
-const usedImgs = B => new Set([B.anhbia, ...B.tumoi.map(v => v.img), ...Object.values(B.cachviet)].filter(Boolean));
+const usedImgs = B => new Set([B.anhbia, ...(B.trang || []), ...B.tumoi.map(v => v.img), ...Object.values(B.cachviet)].filter(Boolean));
 
 /* ---------- preview ---------- */
 let tPrev;
@@ -293,6 +297,7 @@ function render() {
   const mau = MAU.find(m => m.id === S.mau) || MAU[0];
   $('#c-mau').textContent = mau.ten; $('#pvMau').textContent = mau.ten;
   $('#slideInfo').value = S.slideFile ? `${S.slideFile.name} (lưu thành ${B.slide})` : S.slideName;
+  $('#trangInfo').textContent = S.trang.length ? `Hiện ${S.trang.length} trang ở mục “Bài giảng” của giáo trình` : 'Chưa có. Nạp .pptx hoặc .pdf, từng trang sẽ được đưa vào.';
   const used = usedImgs(B);
   $$('#gallery button').forEach(b => b.classList.toggle('used', used.has(b.dataset.n)));
   const an = AN[B.xuat] || [];   // mục bị ẩn theo loại bài thì không tính lỗi
@@ -321,14 +326,19 @@ $('#pvTrang').addEventListener('click', e => {
 });
 /* Thiết kế bài dạng: giáo trình (PDF) / bài tập (Word, nộp online) / cả hai một trang / cả hai tách riêng. */
 const AN = {giaotrinh: ['box-baitap'], baitap: ['box-muctieu', 'box-tumoi', 'box-nguphap', 'box-hoithoai']};
-const GOI = {giaotrinh: 'Giáo trình: file PDF bài giảng (hoặc .pptx để lấy ảnh).', baitap: 'Bài tập: file Word phiếu bài tập.',
-  full: 'File PDF giáo trình và file Word bài tập, kéo cùng lúc được.', rieng: 'File PDF giáo trình và file Word bài tập, kéo cùng lúc được.'};
 const xuat = () => $('input[name="xuat"]:checked')?.value || 'full';
 function setXuat(v) {
   $$('input[name="xuat"]').forEach(r => r.checked = r.value === v);
-  document.body.dataset.loai = v; $('#napGoi').textContent = GOI[v];
+  document.body.dataset.loai = v;
+  $('#xuatGoi').textContent = S.xuatTay ? 'Bạn đã tự chọn.' : 'Tự chọn theo file đã nạp, bấm ô khác để đổi.';
 }
-$('#xuat').addEventListener('change', () => { setXuat(xuat()); changed(); });
+$('#xuat').addEventListener('change', () => { S.xuatTay = true; setXuat(xuat()); changed(); });
+/* Dạng bài tự chọn theo nội dung đã nạp (có giáo trình, có bài tập), trừ khi thầy cô đã tự bấm chọn. */
+function tuXuat() {
+  if (S.xuatTay) return;
+  const gt = S.trang.length || ['tumoi', 'nguphap', 'hoithoai', 'kienthuc'].some(val), bt = S.exs.length;
+  if (gt || bt) setXuat(gt && bt ? 'full' : bt ? 'baitap' : 'giaotrinh');
+}
 $('#napBia').addEventListener('click', () => $('#fileBia').click());
 $('#fileBia').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -348,7 +358,7 @@ function drawSteps(B, warns, mau) {
     if (small != null) $('small', li).textContent = small;
     if (goTo != null) $('button', li).dataset.go = goTo;
   };
-  const has = [B.tumoi.length && `${B.tumoi.length} từ`, B.nguphap.length && `${B.nguphap.length} ngữ pháp`, B.hoithoai.cau.length && 'hội thoại', S.exs.length && `${S.exs.length} bài tập`].filter(Boolean);
+  const has = [S.trang.length && `${S.trang.length} trang slide`, B.tumoi.length && `${B.tumoi.length} từ`, B.nguphap.length && `${B.nguphap.length} ngữ pháp`, B.hoithoai.cau.length && 'hội thoại', S.exs.length && `${S.exs.length} bài tập`].filter(Boolean);
   step('nap', has.length > 0, false, has.length ? 'Đã có: ' + has.join(', ') : 'Word, slide hoặc ảnh');
   step('mau', true, false, mau.ten);
   const bad = warns.filter(([, n]) => n), total = bad.reduce((n, [, k]) => n + k, 0);
@@ -430,11 +440,12 @@ $('#exs').addEventListener('click', e => {
 
 /* ---------- images ---------- */
 function drawGallery(keep) {
-  const names = [...new Set([...IMG.keys(), ...S.cu])].sort();
+  const names = [...new Set([...IMG.keys(), ...S.cu])].sort(), trang = new Set(S.trang);
   const url = n => IMG.get(n)?.url || S.goc + encodeURIComponent(n);
-  $('#gallery').innerHTML = names.length ? names.map(n => `<button data-n="${esc(n)}" title="Chép tên ảnh"><img src="${esc(url(n))}" alt="" loading="lazy">${esc(n)}</button>`).join('')
+  const luoi = names.filter(n => !trang.has(n));   // ảnh trang slide nằm ở mục Bài giảng, không chen vào lưới ảnh
+  $('#gallery').innerHTML = luoi.length ? luoi.map(n => `<button data-n="${esc(n)}" title="Chép tên ảnh"><img src="${esc(url(n))}" alt="" loading="lazy">${esc(n)}</button>`).join('')
     : '<p class="hint">Chưa có ảnh. Kéo file .pptx hoặc ảnh vào mục 1.</p>';
-  $('#c-anh').textContent = names.length ? `${names.length} ảnh` : '';
+  $('#c-anh').textContent = luoi.length ? `${luoi.length} ảnh` : '';
   const cur = keep ?? ($('#anhbia').dataset.want || $('#anhbia').value);
   $('#anhbia').innerHTML = '<option value="">(không có ảnh bìa)</option>' + names.map(n => `<option${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('');
 }
@@ -444,14 +455,14 @@ $('#gallery').addEventListener('click', async e => {
   catch { toast(`Tên ảnh: ${b.dataset.n}`); }
 });
 const MIME = {jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp'};
-async function addImage(name, blob) {
+async function addImage(name, blob, max = 1200) {
   name = name.replace(/\s+/g, '-').replace(/\.jpeg$/i, '.jpg');
   const ext = name.split('.').pop().toLowerCase();
   if (ext !== 'gif') {
     try {
       const bmp = await createImageBitmap(blob);
-      const max = 1200, k = Math.min(1, max / Math.max(bmp.width, bmp.height));
-      if (k < 1 || blob.size > 400e3) {
+      const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      if (k < 1 || blob.size > max * 330) {
         const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
         c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
         const png = ext === 'png';
@@ -476,19 +487,69 @@ function logFile(name, items) {
 $('#log').addEventListener('click', e => { const a = e.target.closest('[data-go]'); if (a) go(a.dataset.go); });
 $('#log').addEventListener('keydown', e => { const a = e.target.closest('[data-go]'); if (a && e.key === 'Enter') go(a.dataset.go); });
 
-async function nap(files) {
-  $('#log').innerHTML = '';
-  const imgs = [];
-  // PDF trước: nạp PDF bài khác sẽ mở bài mới, các file còn lại (Word, ảnh) mới vào đúng bài đó.
-  files = [...files].sort((a, b) => /\.pdf$/i.test(b.name) - /\.pdf$/i.test(a.name));
+/* Nhận loại file theo nội dung, không theo đuôi: Word, PowerPoint, PDF, ảnh, hoặc .zip chứa các file đó. */
+const RAC_FILE = /^(~\$|\.)|^(thumbs\.db|desktop\.ini)$/i;   // file tạm của Office, file ẩn của hệ điều hành
+async function loaiFile(f) {
+  const dau = new Uint8Array(await f.slice(0, 8).arrayBuffer()), chu = String.fromCharCode(...dau);
+  if (chu.startsWith('%PDF')) return {loai: 'pdf'};
+  if (chu.startsWith('PK')) {
+    const zip = await JSZip.loadAsync(f);
+    return {loai: zip.file('word/document.xml') ? 'docx' : zip.file('ppt/presentation.xml') ? 'pptx' : 'zip', zip};
+  }
+  if (dau[0] === 0xD0 && dau[1] === 0xCF) return {loai: 'cu'};   // .doc, .ppt đời cũ
+  const ext = f.name.split('.').pop().toLowerCase();
+  if (MIME[ext] || /^image\//.test(f.type)) return {loai: 'anh'};
+  return {loai: ''};
+}
+/* Các file trong một .zip thành danh sách File như khi kéo cả thư mục vào. */
+async function moZip(zip) {
+  const out = [];
+  for (const z of Object.values(zip.files)) {
+    if (z.dir || /(^|\/)__MACOSX\//.test(z.name)) continue;
+    out.push(new File([await z.async('blob')], z.name.split('/').pop(), {lastModified: z.date ? +z.date : 0}));
+  }
+  return out;
+}
+/* Kéo thả thư mục: đọc hết file trong thư mục con. */
+async function docMuc(en) {
+  if (en.isFile) return [await new Promise((ok, err) => en.file(ok, err))];
+  const r = en.createReader(), out = [];
+  for (;;) {
+    const lo = await new Promise((ok, err) => r.readEntries(ok, err));
+    if (!lo.length) return out;
+    for (const c of lo) out.push(...await docMuc(c));
+  }
+}
+const THU_TU = {pdf: 0, pptx: 1, docx: 2, anh: 3};
+let dangNap = Promise.resolve();
+/* Nạp bao nhiêu lần cũng được: nội dung mới được cộng vào bài đang soạn, file đã nạp rồi thì bỏ qua. */
+function nap(files) { return dangNap = dangNap.then(async () => napLuot(await files)).catch(e => toast('Không nạp được: ' + (e.message || e))); }
+async function napLuot(files) {
+  files = [...files].filter(f => !RAC_FILE.test(f.name));
+  if (!files.length) return;
+  if (files.length > 1) toast(`Đang đọc ${files.length} file…`);
+  const ds = [];
   for (const f of files) {
-    const ext = f.name.split('.').pop().toLowerCase();
     try {
-      if (ext === 'docx') { await napWord(f); NGUON.set(f.name.replace(/\s+/g, '-'), f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
-      else if (ext === 'pptx') { await napSlide(f); showDemo('slide'); }
-      else if (ext === 'pdf') { await napPdf(f); showDemo('slide'); }
-      else if (MIME[ext]) imgs.push(await addImage(f.name, f));
-      else logFile(f.name, [{t: 'Bỏ qua: chỉ nhận .docx, .pptx, .pdf hoặc ảnh.', cls: 'err'}]);
+      const t = await loaiFile(f);
+      if (t.loai === 'zip') { const con = (await moZip(t.zip)).filter(x => !RAC_FILE.test(x.name)); for (const x of con) ds.push({f: x, ...await loaiFile(x)}); }
+      else ds.push({f, ...t});
+    } catch (e) { logFile(f.name, [{t: `Không đọc được file: ${e.message || e}`, cls: 'err'}]); }
+  }
+  // PDF, slide trước: nạp giáo trình bài khác sẽ mở bài mới, các file còn lại (Word, ảnh) mới vào đúng bài đó.
+  ds.sort((a, b) => (THU_TU[a.loai] ?? 9) - (THU_TU[b.loai] ?? 9));
+  const imgs = [];
+  for (const {f, loai, zip} of ds) {
+    const khoa = `${f.name}|${f.size}|${f.lastModified}`;
+    if (DA_NAP.has(khoa) && loai !== 'anh') { logFile(f.name, [{t: 'File này đã nạp rồi nên bỏ qua.', cls: 'warn'}]); continue; }
+    try {
+      if (loai === 'docx') { await napWord(f); NGUON.set(f.name.replace(/\s+/g, '-'), f); showDemo(S.exs.length && !$('#tumoi').value.trim() ? 'baitap' : 'giaoan'); }
+      else if (loai === 'pptx') { await napSlide(f, zip); showDemo('slide'); }
+      else if (loai === 'pdf') { await napPdf(f); showDemo('slide'); }
+      else if (loai === 'anh') imgs.push(await addImage(f.name, f));
+      else if (loai === 'cu') { logFile(f.name, [{t: 'File Word/PowerPoint đời cũ (.doc, .ppt): mở bằng Word/PowerPoint, chọn Lưu thành .docx hoặc .pptx rồi nạp lại.', cls: 'err'}]); continue; }
+      else { logFile(f.name, [{t: 'Bỏ qua: không phải file Word, PowerPoint, PDF hay ảnh.', cls: 'err'}]); continue; }
+      DA_NAP.add(khoa);
     } catch (e) { logFile(f.name, [{t: `Không đọc được file: ${e.message || e}`, cls: 'err'}]); }
   }
   if (imgs.length) {
@@ -496,8 +557,28 @@ async function nap(files) {
       {t: 'Bấm ảnh để chép tên, rồi dán vào cột “Ảnh” của từ mới.'}]);
     showDemo('anh');
   }
+  tuXuat();
   drawGallery(); render();
+  if (ds.length > 1) toast(`Đã nạp xong ${ds.length} file.`);
 }
+/* Ảnh từng trang của một file slide / PDF thành mục Bài giảng. File cùng tên (Bài 10.pptx và Bài 10.pdf) là một bộ slide:
+   chỉ giữ một bản, ưu tiên PDF vì giống bản gốc hơn. Bộ slide khác tên thì nối tiếp phía sau. */
+async function datTrang(file, kieu, blobs) {
+  const ten = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase(), cu = NHOM.get(ten);
+  if (cu && cu.kieu === 'pdf' && kieu === 'pptx') return false;
+  const g = cu ? cu.g : Math.max(0, ...[...NHOM.values()].map(x => x.g)) + 1, dau = g === 1 ? 'trang' : `trang${g}`;
+  const names = [];
+  for (const [i, b] of blobs.entries()) names.push(await addImage(`${dau}-${String(i + 1).padStart(2, '0')}.jpg`, b, 1600));
+  NHOM.set(ten, {kieu, g, names});
+  S.trang = [...NHOM.values()].sort((a, b) => a.g - b.g).flatMap(x => x.names);   // bài đã lưu có slide cũ: bộ mới thay bộ cũ
+  return true;
+}
+const chupTrang = async (pg, rong) => {
+  const vp = pg.getViewport({scale: rong / pg.getViewport({scale: 1}).width});
+  const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+  await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+  return new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+};
 /* PDF giáo trình (slide xuất ra PDF), chia phần bằng các trang bìa phần chữ dọc (生词, 语法, 课文, 练习):
    - trang đầu: 第N课, tên bài chữ Hán, pinyin;
    - từ vựng: dòng "píngguǒ (n) táo" hoặc "多少（pro）bao nhiêu?", câu chữ Hán trên cùng trang làm câu ví dụ;
@@ -520,14 +601,28 @@ const soTuHan = s => {   // "12" hoặc "十二" → 12
   return s.includes('十') ? (a ? d(a) : 1) * 10 + (b ? d(b) : 0) : d(b);
 };
 const PY_CHU = /[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ]/i;
+/* Câu ví dụ: "我的爸爸 Wǒ de bàba" → [chữ Hán, pinyin]; câu chỉ có chữ Hán thì phải có dấu câu cuối. */
+const tachVd = s => {
+  const k = s.search(PY_CHU);
+  if (k < 0) return laCau(s) && /[。？！?!]$/.test(s) ? [s, ''] : null;
+  const zh = s.slice(0, k).trim(), py = s.slice(k).trim();
+  return k > 0 && laCau(zh) && !CJK.test(py) ? [zh, py] : null;
+};
 const tuLoai = pos => [...new Set(pos.toLowerCase().split(/\s*[,，、/]\s*/).map(x => TU_LOAI[x] || (/từ$/.test(x) ? x : '')).filter(Boolean))].join(', ');
 /* Một dòng từ vựng: "píngguǒ (n) táo", "多少（pro）bao nhiêu" (PDF) hoặc "1. 你 (代) nǐ ： you" (slide .pptx). */
 const TU_SO = /^\d+\s*[.、．]\s*([㐀-鿿]{1,4})\s*[（(]\s*([^()（）]{1,10}?)\s*[)）]\s*([a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ' ]+?)\s*[:：]\s*(.+)$/i;
+/* Dòng từ của slide: "爸爸 bàba 名 Bố", "工作 gōngzuò 名/动 Công việc", "口 kǒu 量" (nghĩa ở chỗ khác). */
+const TL_HAN = '[名动形副代量数介连助叹]';
+const TU_TRAN = new RegExp(`^([㐀-鿿]{1,4})\\s+([a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ'’ ]+?)\\s+(${TL_HAN}(?:\\s*[/／、,]\\s*${TL_HAN})*|(?:n|v|adj|adv|pron?|m|mw|num|prep|conj|part)\\.?)(?:\\s+(.+))?$`, 'i');
 function tuDong(l) {
   let m = l.match(TU_SO);
   if (m) {
     const tl = tuLoai(m[2]), p = m[3].trim(), nghia = m[4].replace(/[㐀-鿿]+(\s*\/\s*[㐀-鿿]+)*/g, '').replace(/[\s,，;；]+$/, '').trim();   // bỏ chữ Hán ghi chú lẫn vào nghĩa
     return tl && nghia ? {w: m[1], p: p[0].toLowerCase() + p.slice(1), tl, nghia} : null;
+  }
+  if ((m = l.match(TU_TRAN)) && !CJK.test(m[4] || '')) {
+    const p = m[2].trim().replace(/’/g, "'");
+    return {w: m[1], p: p[0].toLowerCase() + p.slice(1), tl: tuLoai(m[3]), nghia: (m[4] || '').replace(/[\s,，;；]+$/, '').trim()};
   }
   if (!(m = l.match(TU_DONG))) return null;
   const dau = m[1].trim(), tl = tuLoai(m[2].trim()), nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
@@ -565,20 +660,20 @@ function docGiaoTrinh(pages, tenFile, han = new Map()) {
       const v = phan !== 'luyentap' && tuDong(l);
       if (v) {
         const k = (v.p || v.w) + '|' + v.nghia;
-        if (!tu.has(k)) tu.set(k, {...v, w: v.w || han.get(k) || '', ex: '', trang: i});
+        if (!tu.has(k)) tu.set(k, {...v, w: v.w || han.get(k) || '', ex: null, trang: i});
         trang.push(tu.get(k));
         return;
       }
       // Câu ví dụ chữ Hán: gán cho từ trên cùng trang có chữ Hán nằm trong câu, không thì từ đầu tiên còn thiếu ví dụ.
-      const s = boDau(l);
-      if (trang.length && laCau(s) && /[。？！?!]$/.test(s)) {
-        const v = trang.find(v => v.w && s.includes(v.w) && !v.ex) || trang.find(v => !v.ex);
-        if (v) v.ex = s;
+      const vd = trang.length && tachVd(boDau(l));
+      if (vd) {
+        const v = trang.find(v => v.w && vd[0].includes(v.w) && !v.ex) || trang.find(v => !v.ex);
+        if (v) v.ex = vd;
       }
     });
   });
   g.tu = [...tu.values()];
-  g.tumoi = g.tu.map(v => J([v.w, v.p, v.tl, v.nghia, '', v.ex]));
+  g.tumoi = g.tu.map(v => J([v.w, v.p, v.tl, v.nghia, '', ...(v.ex || [])]));
   return g;
 }
 /* Một trang ngữ pháp → dòng "điểm | ý nghĩa | mẫu câu | câu; câu | ghi chú" của ô Ngữ pháp. */
@@ -683,16 +778,18 @@ async function napPdf(file) {
   }
   apDung(g, got, pages.flat().length > 0, ocr, 'PDF');
   if (ocrLoi) got.push({t: `Không đọc được chữ trong ảnh: ${ocrLoi}. Phần chữ thường vẫn được nạp.`, cls: 'warn'});
-  // Trang đầu làm ảnh bìa nếu bài chưa có.
-  if (!$('#anhbia').value) {
-    const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
-    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-    await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-    const n = await addImage('bia.jpg', await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)));
-    $('#anhbia').dataset.want = n;
+  // Mọi trang thành ảnh ở mục Bài giảng, nên chữ trong ảnh hay chữ không đọc được học sinh vẫn xem đủ.
+  const anhTrang = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    toast(`Đang chụp trang ${i}/${pdf.numPages} của PDF…`);
+    anhTrang.push(await chupTrang(await pdf.getPage(i), 1600));
+  }
+  await datTrang(file, 'pdf', anhTrang);
+  got.push({t: `Bài giảng: ${anhTrang.length} trang PDF đưa vào giáo trình, học sinh lật từng trang hoặc trình chiếu.`, go: 'box-info'});
+  if (!$('#anhbia').value && anhTrang[0]) {   // trang đầu làm ảnh bìa nếu bài chưa có
+    $('#anhbia').dataset.want = await addImage('bia.jpg', anhTrang[0]);
     got.push({t: 'Trang đầu được dùng làm ảnh bìa (đổi được ở mục 3).', go: 'box-info'});
   }
-  got.push({t: 'Dùng làm bài thuyết trình của bài.', go: 'box-info'});
   logFile(file.name, got);
   changed();
 }
@@ -718,10 +815,11 @@ function apDung(g, got, coChu, ocr, kieu) {
   if (!g.ten && coChu) got.push({t: 'Không thấy tên bài chữ Hán ở trang đầu, hãy điền tay.', cls: 'warn', go: 'box-info'});
   if (g.tumoi.length && !val('tumoi')) {
     $('#tumoi').value = g.tumoi.join('\n');
-    const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length;
+    const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length, khongNghia = g.tu.filter(v => !v.nghia).length;
     const vd = g.tumoi.filter(r => r.split(' | ').length > 5).length;
     got.push({t: `Từ mới: ${g.tumoi.length} từ${vd ? `, ${vd} từ có câu ví dụ (đoán theo trang, nên xem lại)` : ''}`, go: 'box-tumoi'});
     if (ocr && ocr.han.size) got.push({t: `Đọc chữ trong ảnh (OCR ${ocr.trang} trang): tìm được chữ Hán cho ${ocr.han.size} từ, khớp theo pinyin. Nên xem lại.`, go: 'box-tumoi'});
+    if (khongNghia) got.push({t: `${khongNghia} từ chưa đọc được nghĩa, cần điền tay.`, cls: 'warn', go: 'box-tumoi'});
     if (thieu) got.push({t: `${thieu} từ chưa có chữ Hán${ocr ? ' (OCR không đọc ra)' : ' (nằm trong ảnh)'}, cần điền tay.`, cls: 'warn', go: 'box-tumoi'});
   } else if (g.tumoi.length) got.push({t: `Tìm được ${g.tumoi.length} từ nhưng mục Từ mới đã có sẵn nên không ghi đè.`, cls: 'warn', go: 'box-tumoi'});
   if (g.nguphap.length && !val('nguphap')) {
@@ -743,8 +841,8 @@ const XML_KT = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"};
 const dongSlide = xml => (xml.match(/<a:p>[\s\S]*?<\/a:p>/g) || [])
   .flatMap(p => [...p.matchAll(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>|<a:br\b/g)].map(m => m[1] ?? '\n').join('').split('\n'))
   .map(l => l.replace(/&(amp|lt|gt|quot|apos);/g, (_, k) => XML_KT[k]).replace(/\s+/g, ' ').trim()).filter(Boolean);
-async function napSlide(file) {
-  const zip = await JSZip.loadAsync(file);
+async function napSlide(file, zip) {
+  zip ||= await JSZip.loadAsync(file);
   const num = n => +n.match(/(\d+)\.xml/)[1];
   const slides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => num(a) - num(b));
   const bodies = await Promise.all(slides.map(s => zip.file(s).async('string')));
@@ -771,9 +869,15 @@ async function napSlide(file) {
   }
   S.slideFile = file;
   apDung(g, got, pages.flat().length > 0, null, 'Slide');
+  // Vẽ từng slide thành ảnh cho mục Bài giảng: slide toàn ảnh, chữ không tách được vẫn lên giáo trình đủ nội dung.
+  try {
+    const ve = await veSlides(zip, {rong: 1600, tienDo: (i, n) => toast(`Đang chụp slide ${i + 1}/${n}…`)});
+    if (!ve.length) got.push({t: 'Không vẽ được slide nào thành ảnh.', cls: 'warn'});
+    else if (await datTrang(file, 'pptx', ve.map(x => x.blob))) got.push({t: `Bài giảng: ${ve.length} slide đưa vào giáo trình, học sinh lật từng trang hoặc trình chiếu. Xem lại ở khung bên phải.`, go: 'box-info'});
+    else got.push({t: 'Đã có bản PDF cùng tên nên mục Bài giảng giữ ảnh chụp từ PDF.', go: 'box-info'});
+  } catch (e) { got.push({t: `Không vẽ được slide thành ảnh: ${e.message || e}`, cls: 'warn'}); }
   if (bia && !$('#anhbia').value) { $('#anhbia').dataset.want = bia; got.push({t: `Ảnh lớn nhất ở trang đầu (${bia}) được dùng làm ảnh bìa (đổi được ở mục 3).`, go: 'box-info'}); }
-  got.push({t: `${slides.length} trang, tách được ${count} ảnh${gif ? ` (${gif} ảnh động .gif, thường là thứ tự nét)` : ''}.`, go: 'box-anh', cls: count ? '' : 'warn'},
-    {t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'});
+  got.push({t: `Tách riêng được ${count} ảnh trong slide${gif ? ` (${gif} ảnh động .gif, thường là thứ tự nét)` : ''} để gắn vào thẻ từ.`, go: 'box-anh', cls: count ? '' : 'warn'});
   logFile(file.name, got);
   changed();
 }
@@ -984,9 +1088,13 @@ async function napWord(file) {
   if (htIntro) $('#ht-gioithieu').value = htIntro;
   const exs = out.exs.filter(x => x.lines.length);
   if (exs.length) {
-    S.exs = exs.map(x => { const loai = guessLoai(x.tieude); return {loai, tieude: x.tieude, text: tuDo(loai, x.lines)}; });
+    // Cộng vào bài tập đã có; file này nạp lại (đã sửa) thì thay các bài cũ của chính nó.
+    S.exs = S.exs.filter(x => x.nguon !== file.name);
+    const dau = S.exs.length;
+    S.exs.push(...exs.map(x => { const loai = guessLoai(x.tieude); return {loai, tieude: x.tieude, text: tuDo(loai, x.lines), nguon: file.name}; }));
     drawExs();
-    S.exs.forEach((x, i) => {
+    S.exs.slice(dau).forEach((x, j) => {
+      const i = dau + j;
       const w = [], d = PX[x.loai](x.text, w), n = soCau(x.loai, d);
       add(`Bài ${i + 1} · ${LOAI[x.loai].ten} · ${n} câu${w.length ? ` · ${w.length} chỗ cần xem (thường là thiếu đáp án)` : ''}`, 'box-baitap', !n ? 'err' : w.length ? 'warn' : '');
     });
@@ -1014,9 +1122,16 @@ $('#kinds').addEventListener('click', e => { const b = e.target.closest('[data-d
 const drop = $('#drop');
 $('#pickFile').addEventListener('click', () => $('#file').click());
 $('#file').addEventListener('change', e => { nap([...e.target.files]); e.target.value = ''; });
+$('#pickFolder').addEventListener('click', () => $('#folder').click());
+$('#folder').addEventListener('change', e => { nap([...e.target.files]); e.target.value = ''; });
 ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', e => nap([...e.dataTransfer.files]));
+drop.addEventListener('drop', e => {
+  // Lấy mục kéo vào ngay lúc thả (sau await thì trình duyệt xóa mất), thư mục thì đọc hết file bên trong.
+  const ms = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!ms.length || ms.every(m => m.isFile)) return nap([...e.dataTransfer.files]);
+  nap(Promise.all(ms.map(docMuc)).then(x => x.flat()));
+});
 
 /* Nút "Chèn ví dụ" dưới các mục 4–7 */
 document.addEventListener('click', e => {
@@ -1051,8 +1166,8 @@ function loadScript(src) {
   });
 }
 async function openLesson(dir) {
-  IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); NGUON.clear();
-  S.sua = dir; S.cu = new Set(); S.goc = '';
+  IMG.forEach(v => URL.revokeObjectURL(v.url)); IMG.clear(); NGUON.clear(); NHOM.clear(); DA_NAP.clear();
+  S.sua = dir; S.cu = new Set(); S.goc = ''; S.xuatTay = !!dir;
   if (!dir) {
     const last = list().at(-1), so = last ? last.so + 1 : 1;
     fill({so, dir: 'bai' + so, cap: last ? (await lessonCap(last.dir)) : 'Tiếng Trung HSK 1', mau: S.mau});
@@ -1404,6 +1519,7 @@ $('#logout').addEventListener('click', () => {
   const d = readDraft();
   if (d && d.dirty && d.B) {
     if (d.sua) { S.sua = d.sua; S.goc = BASE + d.sua + '/anh/'; S.cu = usedImgs(d.B); }
+    S.xuatTay = !!d.sua;
     fill(d.B); S.exs = d.exs || S.exs; S.slideName = d.slideName || ''; drawExs(); drawPick();
     dirty = true; render();
     toast('Đã mở lại bài đang soạn dở. Ảnh và slide mới nạp cần nạp lại.');

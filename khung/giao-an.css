@@ -51,6 +51,35 @@ p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 
+/* bài giảng: ảnh từng trang slide */
+.sv{display:grid;gap:10px}
+.sv-stage{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:0 6px 24px rgb(0 0 0 / .08)}
+.sv-stage img{display:block;width:100%;height:auto;max-height:78vh;object-fit:contain;cursor:zoom-in;background:#fff}
+.sv-nav{position:absolute;top:50%;translate:0 -50%;width:44px;height:44px;border-radius:50%;border:0;background:rgb(0 0 0 / .45);color:#fff;font-size:1.8rem;line-height:1;display:grid;place-items:center;opacity:.75;transition:opacity .15s}
+.sv-nav:hover,.sv-nav:focus-visible{opacity:1}
+.sv-nav.prev{left:8px}.sv-nav.next{right:8px}
+.sv-x{display:none}
+.sv-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.sv-num{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.sv-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.sv-acts svg{width:16px;height:16px}
+.sv-thumbs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity}
+.sv-thumbs button{flex:none;width:132px;padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);position:relative;scroll-snap-align:center}
+.sv-thumbs button[aria-current="true"]{border-color:var(--pri)}
+.sv-thumbs img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.sv-thumbs span{position:absolute;left:4px;bottom:4px;font-size:.72rem;font-weight:700;background:rgb(0 0 0 / .55);color:#fff;border-radius:4px;padding:0 5px}
+.sv-all{display:grid;gap:14px}
+.sv-all figure{margin:0;position:relative}
+.sv-all img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+.sv-all figcaption{position:absolute;right:8px;bottom:8px;font-size:.75rem;font-weight:700;background:rgb(0 0 0 / .55);color:#fff;border-radius:4px;padding:0 6px}
+.sv.list .sv-stage,.sv.list .sv-thumbs,.sv.list .sv-num{display:none}
+/* Trình chiếu: phủ kín màn hình (chạy cả trên iPhone, nơi ảnh không vào được chế độ toàn màn hình) */
+.sv.full .sv-stage{position:fixed;inset:0;z-index:50;border:0;border-radius:0;background:#000;display:grid;place-items:center}
+.sv.full .sv-stage img{width:100vw;height:100vh;height:100dvh;aspect-ratio:auto;cursor:zoom-out;background:#000}
+.sv.full .sv-x{display:grid;place-items:center;position:absolute;top:max(10px,env(safe-area-inset-top,0px));right:10px;width:44px;height:44px;border-radius:50%;border:0;background:rgb(255 255 255 / .18);color:#fff;font-size:1.2rem}
+body.sv-on{overflow:hidden}
+@media (max-width:640px){.sv-nav{width:36px;height:36px;font-size:1.4rem}.sv-thumbs button{width:96px}}
+
 /* hero */
 .hero{padding-block:28px 24px}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}

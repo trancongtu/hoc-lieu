@@ -389,10 +389,10 @@ dialog.qr .seg{margin:12px 0 0}
 
   <div class="box" id="box-loai">
     <div class="body" style="padding-top:12px">
-      <h2 style="font-size:1rem">Thiết kế bài dạng</h2>
+      <h2 style="font-size:1rem">Thiết kế bài dạng <span class="hint" id="xuatGoi" style="font-weight:400"></span></h2>
       <div class="loai" id="xuat" role="radiogroup" aria-label="Thiết kế bài dạng">
-        <label><input type="radio" name="xuat" value="giaotrinh"><b>Giáo trình</b><small>Nạp PDF bài giảng: tự lấy số bài, tên bài, pinyin, từ vựng và ảnh bìa.</small></label>
-        <label><input type="radio" name="xuat" value="baitap"><b>Bài tập</b><small>Nạp Word phiếu bài tập. Học sinh làm trên web, điền họ tên, lớp rồi nộp.</small></label>
+        <label><input type="radio" name="xuat" value="giaotrinh"><b>Giáo trình</b><small>Bài giảng (từng trang slide), từ mới, ngữ pháp, hội thoại.</small></label>
+        <label><input type="radio" name="xuat" value="baitap"><b>Bài tập</b><small>Học sinh làm trên web, điền họ tên, lớp rồi nộp.</small></label>
         <label><input type="radio" name="xuat" value="full"><b>Cả hai, một trang</b><small>Giáo trình và bài tập chung một trang, một mã QR.</small></label>
         <label><input type="radio" name="xuat" value="rieng"><b>Cả hai, tách riêng</b><small>Hai trang riêng, mỗi trang một mã QR.</small></label>
       </div>
@@ -406,9 +406,9 @@ dialog.qr .seg{margin:12px 0 0}
         <div style="display:grid;gap:10px;align-content:start">
           <div class="drop" id="drop">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
-            <div class="big">Kéo thả file vào đây</div>
-            <div class="hint" id="napGoi"></div>
-            <div><button class="btn primary sm" id="pickFile">Chọn file từ máy</button></div>
+            <div class="big">Kéo thả file hoặc cả thư mục vào đây</div>
+            <div class="hint">Word, PowerPoint, PDF, ảnh, .zip: tự nhận file nào là slide, giáo án hay phiếu bài tập. Nạp thêm lần nữa thì nội dung được cộng vào.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center"><button class="btn primary sm" id="pickFile">Chọn file</button><button class="btn sm" id="pickFolder">Chọn thư mục</button></div>
             <label class="hint"><input type="checkbox" id="ocr" checked> Đọc cả chữ trong ảnh của PDF (OCR, chậm hơn khoảng 1–2 phút)</label>
             <div class="kinds" id="kinds" role="group" aria-label="Xem ví dụ theo loại file">
               <button data-d="baitap"><b>.docx</b> phiếu bài tập</button>
@@ -416,7 +416,8 @@ dialog.qr .seg{margin:12px 0 0}
               <button data-d="slide"><b>.pptx .pdf</b> slide</button>
               <button data-d="anh"><b>.jpg .png .gif</b> ảnh</button>
             </div>
-            <input type="file" id="file" multiple accept=".docx,.pptx,.pdf,image/*" hidden>
+            <input type="file" id="file" multiple accept=".docx,.pptx,.pdf,.zip,.doc,.ppt,image/*" hidden>
+            <input type="file" id="folder" webkitdirectory multiple hidden>
           </div>
           <div class="results" id="log" aria-live="polite"></div>
         </div>
@@ -460,6 +461,7 @@ dialog.qr .seg{margin:12px 0 0}
           <input type="file" id="fileBia" accept="image/*" hidden></div>
         <label class="f">Slide thuyết trình<input id="slideInfo" readonly placeholder="Chưa có, kéo file .pptx hoặc .pdf vào mục 1"></label>
       </div>
+      <div class="f">Bài giảng trong giáo trình<label class="hint" style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="hienTrang" checked><span id="trangInfo"></span></label></div>
     </div>
   </details>
 
@@ -596,6 +598,7 @@ B <b>|</b> 我家有五口人。 <b>|</b> Wǒ jiā yǒu wǔ kǒu rén. <b>|</b> 
 <script src="khung/lib/qrcode.min.js"></script>
 <script src="khung/lib/jszip.min.js"></script>
 <script src="khung/lib/mammoth.browser.min.js"></script>
+<script src="khung/ve-slide.js"></script>
 <script src="khung/soan-bai.js"></script>
 </body>
 </html>
