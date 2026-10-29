@@ -513,21 +513,48 @@ const HAN = /^[㐀-鿿]+$/;
 const TU_DONG = /^(.{1,24}?)\s*[（(]\s*([^()（）]{1,10}?)\s*[)）]\s*[=:：]?\s*(.+)$/;
 const MOC = [['tumoi', /生.*词|词.*生/], ['nguphap', /语.*法|法.*语/], ['baikhoa', /课.*文|文.*课/], ['luyentap', /练.*习|习.*练/]];
 const soHan = l => (l.match(/[㐀-鿿]/g) || []).length;
+const BAI_SO = /第\s*([\d一二三四五六七八九十]+)\s*课/;
+const soTuHan = s => {   // "12" hoặc "十二" → 12
+  if (/^\d+$/.test(s)) return +s;
+  const d = c => '一二三四五六七八九'.indexOf(c) + 1, [a, b] = s.includes('十') ? s.split('十') : ['', s];
+  return s.includes('十') ? (a ? d(a) : 1) * 10 + (b ? d(b) : 0) : d(b);
+};
+const PY_CHU = /[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ]/i;
+const tuLoai = pos => [...new Set(pos.toLowerCase().split(/\s*[,，、/]\s*/).map(x => TU_LOAI[x] || (/từ$/.test(x) ? x : '')).filter(Boolean))].join(', ');
+/* Một dòng từ vựng: "píngguǒ (n) táo", "多少（pro）bao nhiêu" (PDF) hoặc "1. 你 (代) nǐ ： you" (slide .pptx). */
+const TU_SO = /^\d+\s*[.、．]\s*([㐀-鿿]{1,4})\s*[（(]\s*([^()（）]{1,10}?)\s*[)）]\s*([a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙ' ]+?)\s*[:：]\s*(.+)$/i;
+function tuDong(l) {
+  let m = l.match(TU_SO);
+  if (m) {
+    const tl = tuLoai(m[2]), p = m[3].trim(), nghia = m[4].replace(/[㐀-鿿]+(\s*\/\s*[㐀-鿿]+)*/g, '').replace(/[\s,，;；]+$/, '').trim();   // bỏ chữ Hán ghi chú lẫn vào nghĩa
+    return tl && nghia ? {w: m[1], p: p[0].toLowerCase() + p.slice(1), tl, nghia} : null;
+  }
+  if (!(m = l.match(TU_DONG))) return null;
+  const dau = m[1].trim(), tl = tuLoai(m[2].trim()), nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
+  let w = '', p = '';
+  if (HAN.test(dau)) w = dau; else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
+  return tl && nghia && !CJK.test(nghia) && (w || p) ? {w, p, tl, nghia} : null;
+}
+/* Trang bìa phần: vài dòng chữ Hán ngắn (生词, hoặc 生 / 词 tách dòng), có thể kèm dòng ngắn "Từ vựng", "Part 2". */
+const laBia = ls => { const h = ls.filter(l => CJK.test(l)); return h.length > 0 && h.length <= 4 && h.every(l => l.length <= 3) && ls.length <= 5 && ls.every(l => l.length <= 12); };
 const boDau = l => l.replace(/^\s*(\d+\s*[.、．)]|[-–•]|=>|\(\?\)|vd\s*[:：])\s*/i, '').trim();   // "1." "- " "=> " "VD:" ở đầu dòng
 const laCau = l => soHan(l) >= 2 && !l.includes('+') && !/[|]/.test(l);
 /* han: chữ Hán đọc được bằng OCR, khóa "pinyin|nghĩa" (lần đọc thứ hai, sau khi OCR). */
 function docGiaoTrinh(pages, tenFile, han = new Map()) {
   const p1 = pages[0] || [], g = {so: 0, ten: '', pinyin: '', tumoi: [], nguphap: [], hoi: [], tu: [], baiKhoa: []};
-  const so = p1.join(' ').match(/第\s*(\d+)\s*课/) || tenFile.match(/b[àa]i\s*(\d+)/i);
-  if (so) g.so = +so[1];
-  g.ten = p1.find(l => !/第\s*\d+\s*课|汇报人|报告人|[:：]/.test(l) && soHan(l) >= 2) || '';
+  const so = p1.join(' ').match(BAI_SO) || tenFile.match(/b[àa]i\s*(\d+)/i);
+  if (so) g.so = soTuHan(so[1]);
+  g.ten = p1.find(l => !BAI_SO.test(l) && !/汇报人|报告人|[:：]/.test(l) && soHan(l) >= 2) || '';
   g.pinyin = p1.find(l => PY_DAU.test(l) && !CJK.test(l) && !/[:：]/.test(l)) || '';
+  // Tên bài và pinyin chung một dòng: "你好！Nǐ hǎo！"
+  const k = g.ten.search(PY_CHU);
+  if (k > 0 && CJK.test(g.ten.slice(0, k))) { g.pinyin ||= g.ten.slice(k).trim(); g.ten = g.ten.slice(0, k).trim(); }
   const tu = new Map();   // khóa → {w, p, tl, nghia, ex, trang}
   let phan = '', hoi = false;
   pages.forEach((ls, i) => {
     if (!i) return;
     // Trang bìa phần: vài dòng ngắn ghép lại thành 生词 / 语法 / 课文 / 练习.
-    if (ls.length <= 4 && ls.every(l => l.length <= 3)) { const m = MOC.find(([, re]) => re.test(ls.join(''))); if (m) { phan = m[0]; return; } }
+    if (laBia(ls)) { const m = MOC.find(([, re]) => re.test(ls.filter(l => CJK.test(l)).join(''))); if (m) { phan = m[0]; return; } }
     if (phan === 'baikhoa') g.baiKhoa.push(i);
     if (phan === 'nguphap') { const d = diemNguPhap(ls); if (d) g.nguphap.push(d); return; }
     const trang = [];
@@ -535,19 +562,12 @@ function docGiaoTrinh(pages, tenFile, han = new Map()) {
     ls.forEach(l => {
       if (/回答问题/.test(l)) { hoi = true; return; }
       if (hoi && laCau(l)) { g.hoi.push(boDau(l.replace(/^\d+\s*、/, ''))); return; }
-      const m = l.match(TU_DONG);
-      if (m && phan !== 'luyentap') {
-        const dau = m[1].trim(), pos = m[2].trim().toLowerCase();
-        const tl = TU_LOAI[pos] || (/từ$/.test(pos) ? pos : '');
-        const nghia = m[3].replace(/[\s,，;；]+$/, '').trim();
-        let w = '', p = '';
-        if (HAN.test(dau)) w = dau; else if (PY_TU.test(dau)) p = dau[0].toLowerCase() + dau.slice(1);
-        if (tl && nghia && !CJK.test(nghia) && (w || p)) {
-          const k = (p || w) + '|' + nghia;
-          if (!tu.has(k)) tu.set(k, {w: w || han.get(k) || '', p, tl, nghia, ex: '', trang: i});
-          trang.push(tu.get(k));
-          return;
-        }
+      const v = phan !== 'luyentap' && tuDong(l);
+      if (v) {
+        const k = (v.p || v.w) + '|' + v.nghia;
+        if (!tu.has(k)) tu.set(k, {...v, w: v.w || han.get(k) || '', ex: '', trang: i});
+        trang.push(tu.get(k));
+        return;
       }
       // Câu ví dụ chữ Hán: gán cho từ trên cùng trang có chữ Hán nằm trong câu, không thì từ đầu tiên còn thiếu ví dụ.
       const s = boDau(l);
@@ -655,27 +675,47 @@ async function napPdf(file) {
   }
   let g = docGiaoTrinh(pages, file.name), ocr = null, ocrLoi = '';
   const got = [];
-  // PDF của bài khác với bài đang mở: chuyển sang soạn bài mới để khung xem trước không còn nội dung bài cũ.
-  const dang = parseInt(val('so'), 10) || 0, coNoiDung = S.sua || ['ten', 'tumoi', 'nguphap', 'hoithoai'].some(id => val(id)) || S.exs.length;
-  if ((g.so && g.so !== dang && coNoiDung) || (!g.so && S.sua)) {
-    const ten = S.sua ? `Bài ${dang}` : 'bài đang soạn';
-    if (confirm(`${g.so ? `File này là Bài ${g.so}` : 'File này'}, khác ${ten}.\n\nOK: soạn thành bài mới từ file PDF (nội dung ${ten} trên trang sẽ được thay).\nHủy: chỉ dùng PDF làm slide cho ${ten}.`)) {
-      const loai = xuat();
-      await openLesson('');
-      setXuat(loai);
-    }
-  }
+  await doiBai(g, 'PDF');
   S.slideFile = file;
   if ($('#ocr').checked) {
     try { ocr = await docAnh(pdf, g); if (ocr.han.size) g = docGiaoTrinh(pages, file.name, ocr.han); }
     catch (e) { ocrLoi = e.message || String(e); }
   }
+  apDung(g, got, pages.flat().length > 0, ocr, 'PDF');
+  if (ocrLoi) got.push({t: `Không đọc được chữ trong ảnh: ${ocrLoi}. Phần chữ thường vẫn được nạp.`, cls: 'warn'});
+  // Trang đầu làm ảnh bìa nếu bài chưa có.
+  if (!$('#anhbia').value) {
+    const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+    const n = await addImage('bia.jpg', await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)));
+    $('#anhbia').dataset.want = n;
+    got.push({t: 'Trang đầu được dùng làm ảnh bìa (đổi được ở mục 3).', go: 'box-info'});
+  }
+  got.push({t: 'Dùng làm bài thuyết trình của bài.', go: 'box-info'});
+  logFile(file.name, got);
+  changed();
+}
+/* File giáo trình của bài khác với bài đang mở: chuyển sang soạn bài mới để khung xem trước không còn nội dung bài cũ. */
+async function doiBai(g, kieu) {
+  const dang = parseInt(val('so'), 10) || 0, coNoiDung = S.sua || ['ten', 'tumoi', 'nguphap', 'hoithoai'].some(id => val(id)) || S.exs.length;
+  if ((g.so && g.so !== dang && coNoiDung) || (!g.so && S.sua)) {
+    const ten = S.sua ? `Bài ${dang}` : 'bài đang soạn';
+    if (confirm(`${g.so ? `File này là Bài ${g.so}` : 'File này'}, khác ${ten}.\n\nOK: soạn thành bài mới từ file ${kieu} (nội dung ${ten} trên trang sẽ được thay).\nHủy: chỉ dùng ${kieu} làm slide cho ${ten}.`)) {
+      const loai = xuat();
+      await openLesson('');
+      setXuat(loai);
+    }
+  }
+}
+/* Điền các mục còn trống từ kết quả đọc giáo trình (PDF hoặc slide .pptx); coChu: file có chữ để đọc. */
+function apDung(g, got, coChu, ocr, kieu) {
   const dien = (id, v) => { if (v && !val(id)) { $('#' + id).value = v; return true; } };
   if (g.so && !S.sua) { $('#so').value = g.so; $('#dir').value = 'bai' + g.so; }
   const tt = [g.so && !S.sua && `Bài ${g.so}`, dien('ten', g.ten) && g.ten, dien('pinyin', g.pinyin) && g.pinyin].filter(Boolean);
   if (tt.length) got.push({t: 'Thông tin bài: ' + tt.join(' · '), go: 'box-info'});
-  else if (!pages.flat().length) got.push({t: 'PDF này toàn ảnh, không có chữ để đọc. Hãy điền thông tin bài bằng tay.', cls: 'warn', go: 'box-info'});
-  if (!g.ten && pages.flat().length) got.push({t: 'Không thấy tên bài chữ Hán ở trang đầu, hãy điền tay.', cls: 'warn', go: 'box-info'});
+  else if (!coChu) got.push({t: `${kieu} này toàn ảnh, không có chữ để đọc. Hãy điền thông tin bài bằng tay.`, cls: 'warn', go: 'box-info'});
+  if (!g.ten && coChu) got.push({t: 'Không thấy tên bài chữ Hán ở trang đầu, hãy điền tay.', cls: 'warn', go: 'box-info'});
   if (g.tumoi.length && !val('tumoi')) {
     $('#tumoi').value = g.tumoi.join('\n');
     const thieu = g.tumoi.filter(r => r.startsWith(' |') || r.startsWith('|')).length;
@@ -696,46 +736,46 @@ async function napPdf(file) {
   if (ocr && ocr.hoithoai.length >= 2 && !val('hoithoai')) {
     $('#hoithoai').value = ocr.hoithoai.join('\n');
     got.push({t: `Hội thoại (OCR): ${ocr.hoithoai.length} câu, chưa có pinyin và nghĩa. Nên đối chiếu lại với slide.`, cls: 'warn', go: 'box-hoithoai'});
-  } else if (pages.flat().length && !val('hoithoai')) got.push({t: 'Không đọc được hội thoại bài khóa, cần gõ vào mục Hội thoại nếu muốn có.', cls: 'warn', go: 'box-hoithoai'});
-  if (ocrLoi) got.push({t: `Không đọc được chữ trong ảnh: ${ocrLoi}. Phần chữ thường vẫn được nạp.`, cls: 'warn'});
-  // Trang đầu làm ảnh bìa nếu bài chưa có.
-  if (!$('#anhbia').value) {
-    const pg = await pdf.getPage(1), vp = pg.getViewport({scale: 1200 / pg.getViewport({scale: 1}).width});
-    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-    await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-    const n = await addImage('bia.jpg', await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)));
-    $('#anhbia').dataset.want = n;
-    got.push({t: 'Trang đầu được dùng làm ảnh bìa (đổi được ở mục 3).', go: 'box-info'});
-  }
-  got.push({t: 'Dùng làm bài thuyết trình của bài.', go: 'box-info'});
-  logFile(file.name, got);
-  changed();
+  } else if (coChu && !val('hoithoai')) got.push({t: 'Không đọc được hội thoại bài khóa, cần gõ vào mục Hội thoại nếu muốn có.', cls: 'warn', go: 'box-hoithoai'});
 }
+/* Chữ trên một slide: mỗi đoạn <a:p> (cả trong bảng, nhóm hình) một dòng, xuống dòng <a:br/> cũng tách dòng. */
+const XML_KT = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"};
+const dongSlide = xml => (xml.match(/<a:p>[\s\S]*?<\/a:p>/g) || [])
+  .flatMap(p => [...p.matchAll(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>|<a:br\b/g)].map(m => m[1] ?? '\n').join('').split('\n'))
+  .map(l => l.replace(/&(amp|lt|gt|quot|apos);/g, (_, k) => XML_KT[k]).replace(/\s+/g, ' ').trim()).filter(Boolean);
 async function napSlide(file) {
   const zip = await JSZip.loadAsync(file);
   const num = n => +n.match(/(\d+)\.xml/)[1];
   const slides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => num(a) - num(b));
-  let count = 0, gif = 0;
-  for (const s of slides) {
+  const bodies = await Promise.all(slides.map(s => zip.file(s).async('string')));
+  // Đọc chữ trên slide như PDF giáo trình (số bài, tên bài, từ vựng…), trước khi tách ảnh để đổi bài mới không làm mất ảnh.
+  const pages = bodies.map(dongSlide), g = docGiaoTrinh(pages, file.name), got = [];
+  await doiBai(g, '.pptx');
+  let count = 0, gif = 0, bia = null;
+  for (const [j, s] of slides.entries()) {
     const n = num(s), rel = zip.file(`ppt/slides/_rels/slide${n}.xml.rels`); if (!rel) continue;
     const xml = new DOMParser().parseFromString(await rel.async('string'), 'application/xml');
     // Đánh số theo thứ tự ảnh xuất hiện trên trang (kể cả ảnh lặp): s02_1.jpg, s02_2.gif…
     const rels = Object.fromEntries([...xml.getElementsByTagName('Relationship')]
       .filter(r => /\/image$/.test(r.getAttribute('Type'))).map(r => [r.getAttribute('Id'), r.getAttribute('Target')]));
-    const body = await zip.file(s).async('string');
-    const targets = [...body.matchAll(/r:embed="([^"]+)"/g)].map(m => rels[m[1]]).filter(Boolean);
+    const targets = [...bodies[j].matchAll(/r:embed="([^"]+)"/g)].map(m => rels[m[1]]).filter(Boolean);
     let k = 0;
     for (const t of targets) {
       const path = t.startsWith('/') ? t.slice(1) : 'ppt/' + t.replace(/^\.\.\//, '');
       const ext = path.split('.').pop().toLowerCase(), f = zip.file(path);
       if (!f || !MIME[ext]) continue;
       k++; count++; gif += ext === 'gif';
-      await addImage(`s${String(n).padStart(2, '0')}_${k}.${ext}`, new Blob([await f.async('uint8array')], {type: MIME[ext]}));
+      const ten = await addImage(`s${String(n).padStart(2, '0')}_${k}.${ext}`, new Blob([await f.async('uint8array')], {type: MIME[ext]}));
+      if (!j && ext !== 'gif' && (!bia || IMG.get(ten).blob.size > IMG.get(bia).blob.size)) bia = ten;   // ảnh lớn nhất trang đầu làm ảnh bìa
     }
   }
   S.slideFile = file;
-  logFile(file.name, [{t: `${slides.length} trang, tách được ${count} ảnh${gif ? ` (${gif} ảnh động .gif, thường là thứ tự nét)` : ''}.`, go: 'box-anh', cls: count ? '' : 'warn'},
-    {t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'}]);
+  apDung(g, got, pages.flat().length > 0, null, 'Slide');
+  if (bia && !$('#anhbia').value) { $('#anhbia').dataset.want = bia; got.push({t: `Ảnh lớn nhất ở trang đầu (${bia}) được dùng làm ảnh bìa (đổi được ở mục 3).`, go: 'box-info'}); }
+  got.push({t: `${slides.length} trang, tách được ${count} ảnh${gif ? ` (${gif} ảnh động .gif, thường là thứ tự nét)` : ''}.`, go: 'box-anh', cls: count ? '' : 'warn'},
+    {t: 'Dùng làm bài thuyết trình (nút “Thuyết trình” trên mục lục).', go: 'box-info'});
+  logFile(file.name, got);
+  changed();
 }
 
 /* Word: các đề mục (Thông tin, Mục tiêu, Tiến trình, Từ mới, Cách viết, Ngữ pháp, Hội thoại, Bài 1. …) chia phần;
