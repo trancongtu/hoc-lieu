@@ -5,7 +5,6 @@ const B = window.BAI;
 const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 const QRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4z"/></svg>';
-const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -25,14 +24,25 @@ const coGT = TRANG !== 'baitap', coBT = TRANG !== 'giaotrinh';
 document.title = `Bài ${B.so} · ${B.ten}${TRANG === 'baitap' ? ' · Bài tập' : ''}`;
 const V = coGT && B.tumoi || [], G = coGT && B.nguphap || [], D = coGT && B.hoithoai && B.hoithoai.cau || [], EX = coBT && B.baitap || [];
 const mt = coGT && B.muctieu || {}, plan = coGT && B.tientrinh && B.tientrinh.buoc || [];
-const TR = coGT && B.hienTrang !== false && B.trang || [];   // ảnh từng trang slide / PDF bài giảng
+const TR = coGT && B.hienTrang !== false && B.trang || [];   // ảnh chụp từng trang slide / PDF bài giảng
+/* Bài giảng thành bài đọc: mỗi trang một mục (tiêu đề, chữ, ảnh, bảng từ B.noidung); trang không có chữ thì hiện ảnh chụp trang.
+   Trang liền sau cùng tiêu đề hoặc không có tiêu đề thì nối vào mục trước. */
+const BG = [];
+TR.forEach((ten, i) => {
+  const nd = (B.noidung || [])[i], coChu = nd && nd.khoi.some(k => k.t === 'p' || k.t === 'bang');
+  const khoi = (coChu ? nd.khoi : [{t: 'chup'}]).map(k => k.t === 'goc' || k.t === 'chup' ? {...k, ten} : k);
+  khoi.ten = ten;
+  const tieude = coChu && nd.tieude || '', truoc = BG.at(-1);
+  if (truoc && (!tieude || tieude === truoc.tieude)) truoc.phan.push(khoi);
+  else BG.push({tieude, phan: [khoi]});
+});
 const hasGoals = ['kienthuc', 'nangluc', 'phamchat'].some(k => (mt[k] || []).length) || plan.length;
 const secs = [
   hasGoals && ['muc-tieu', 'Mục tiêu'], TR.length && ['bai-giang', 'Bài giảng'], V.length && ['tu-moi', 'Từ mới'], G.length && ['ngu-phap', 'Ngữ pháp'],
   D.length && ['hoi-thoai', 'Hội thoại'], EX.length && ['bai-tap', 'Bài tập'],
 ].filter(Boolean);
 const groups = [...new Set(V.map(v => v.g).filter(Boolean))];
-const chips = [TR.length && `${TR.length} trang bài giảng`, V.length && `${V.length} từ mới`, G.length && `${G.length} điểm ngữ pháp`, EX.length && `${EX.length} bài tập tự chấm`].filter(Boolean);
+const chips = [BG.length && `${BG.length} mục bài giảng`, V.length && `${V.length} từ mới`, G.length && `${G.length} điểm ngữ pháp`, EX.length && `${EX.length} bài tập tự chấm`].filter(Boolean);
 // Xuất riêng: thêm link sang trang còn lại (trừ khi đang xem trước trong trang soạn bài).
 const sang = XUAT !== 'rieng' || preview ? '' : TRANG === 'baitap' ? '<a href="./">← Giáo trình</a>' : (B.baitap || []).length ? '<a href="bai-tap.html">Bài tập →</a>' : '';
 /* Mã QR: [đường dẫn tương đối, tên nút, đuôi tên file ảnh] */
@@ -69,17 +79,7 @@ ${hasGoals ? `<section id="muc-tieu"><div class="wrap">
 </div></section>` : ''}
 ${TR.length ? `<section id="bai-giang"><div class="wrap">
   <div class="sec-head"><h2>Bài giảng</h2><span class="zh">课件</span></div>
-  <div class="sv" id="sv">
-    <div class="sv-stage">
-      <img id="svImg" alt="">
-      <button class="sv-nav prev" data-d="-1" aria-label="Trang trước">‹</button><button class="sv-nav next" data-d="1" aria-label="Trang sau">›</button>
-      <button class="sv-x" id="svX" aria-label="Thoát trình chiếu">✕</button>
-    </div>
-    <div class="sv-bar"><span class="sv-num" id="svNum"></span>
-      <span class="sv-acts"><button class="btn" id="svList" aria-pressed="false">Xem tất cả</button><button class="btn primary" id="svFull">${PLAY}Trình chiếu</button></span></div>
-    <div class="sv-thumbs" id="svThumbs">${TR.map((n, i) => `<button data-i="${i}" aria-label="Trang ${i + 1}"><img src="${anh(n)}" alt="" loading="lazy"><span>${i + 1}</span></button>`).join('')}</div>
-    <div class="sv-all" id="svAll" hidden></div>
-  </div>
+  <div class="bg" id="bg"></div>
 </div></section>` : ''}
 ${V.length ? `<section id="tu-moi"><div class="wrap">
   <div class="sec-head"><h2>Từ mới</h2><span class="zh">生词</span></div>
@@ -154,47 +154,47 @@ document.addEventListener('click', e => {
 });
 const sayBtn = t => `<button class="say" data-say="${esc(t)}" aria-label="Nghe">${SPK}</button>`;
 
-/* ---------- bài giảng: xem từng trang, vuốt hoặc phím ← → để chuyển, trình chiếu kín màn hình, hoặc cuộn xem tất cả ---------- */
-if (TR.length) {
-  const sv = $('#sv'); let cur = 0;
-  const show = i => {
-    cur = (i + TR.length) % TR.length;
-    $('#svImg').src = anh(TR[cur]); $('#svImg').alt = `Trang ${cur + 1}`;
-    $('#svNum').textContent = `Trang ${cur + 1} / ${TR.length}`;
-    $$('#svThumbs button').forEach((b, k) => b.setAttribute('aria-current', k === cur));
-    const t = $$('#svThumbs button')[cur], box = $('#svThumbs');
-    if (t) box.scrollTo({left: t.offsetLeft - box.offsetLeft - box.clientWidth / 2 + t.clientWidth / 2, behavior: 'smooth'});
-    if (TR[cur + 1]) new Image().src = anh(TR[cur + 1]);   // tải sẵn trang sau
+/* ---------- bài giảng: đọc như bài viết trên web, mục lục ở đầu, ảnh chụp slide gốc gập lại ở cuối mỗi mục ---------- */
+if (BG.length) {
+  const HAN = /[㐀-鿿]/, doc = s => (s.replace(/\*\*/g, '').match(/[㐀-鿿，。？！、]+/g) || []).join('');
+  const dong = s => md(s).replace(/\n/g, '<br>').replace(/[㐀-鿿][㐀-鿿，。？！、 ]*/g, m => `<span class="zh">${m}</span>`)
+    + (HAN.test(s) ? sayBtn(doc(s)) : '');
+  const hinh = (n, alt, cls) => `<figure class="${cls}"><img src="${anh(n)}" alt="${esc(alt)}" loading="lazy"></figure>`;
+  const than = ks => {
+    let h = '';
+    for (let i = 0; i < ks.length;) {
+      const k = ks[i];
+      if (k.t === 'p' && k.cham) {   // các ý gạch đầu dòng liền nhau thành một danh sách
+        const tag = k.cham === '#' ? 'ol' : 'ul'; let li = '';
+        for (; i < ks.length && ks[i].t === 'p' && ks[i].cham; i++) li += `<li${ks[i].lv ? ` style="margin-left:${ks[i].lv * 1.2}em"` : ''}>${dong(ks[i].s)}</li>`;
+        h += `<${tag}>${li}</${tag}>`; continue;
+      }
+      if (k.t === 'anh') {   // ảnh liền nhau xếp cạnh nhau, giữ tỉ lệ to nhỏ như trên slide
+        let a = '';
+        for (; i < ks.length && ks[i].t === 'anh'; i++) a += `<img src="${anh(ks[i].ten)}" alt="" loading="lazy" style="width:${Math.max(18, Math.min(100, Math.round(ks[i].w * 100)))}%">`;
+        h += `<div class="bg-anh">${a}</div>`; continue;
+      }
+      if (k.t === 'p') h += `<p>${dong(k.s)}</p>`;
+      else if (k.t === 'bang') h += `<div class="bg-bang"><table>${k.hang.map(r => `<tr>${r.map(c => `<td>${dong(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+      else if (k.t === 'chup') h += hinh(k.ten, 'Trang slide', 'bg-chup');
+      i++;
+    }
+    return h;
   };
-  show(0);
-  sv.addEventListener('click', e => {
-    const n = e.target.closest('.sv-nav'); if (n) return show(cur + +n.dataset.d);
-    const t = e.target.closest('#svThumbs button'); if (t) show(+t.dataset.i);
-  });
-  const full = on => { sv.classList.toggle('full', on); document.body.classList.toggle('sv-on', on); if (on) $('#svX').focus(); };
-  $('#svFull').addEventListener('click', () => full(true));
-  $('#svX').addEventListener('click', () => full(false));
-  $('#svImg').addEventListener('click', () => full(!sv.classList.contains('full')));
-  document.addEventListener('keydown', e => {
-    const on = sv.classList.contains('full');
-    if (!on && !sv.contains(document.activeElement)) return;
-    if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && on)) { e.preventDefault(); show(cur + 1); }
-    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
-    else if (e.key === 'Escape') full(false);
-  });
-  let x0 = null;
-  $('.sv-stage', sv).addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, {passive: true});
-  $('.sv-stage', sv).addEventListener('touchend', e => {
-    if (x0 == null) return;
-    const dx = e.changedTouches[0].clientX - x0; x0 = null;
-    if (Math.abs(dx) > 40) show(cur + (dx < 0 ? 1 : -1));
-  });
-  $('#svList').addEventListener('click', e => {
-    const on = sv.classList.toggle('list');
-    e.currentTarget.setAttribute('aria-pressed', on); e.currentTarget.textContent = on ? 'Xem từng trang' : 'Xem tất cả';
-    if (on && !$('#svAll').children.length) $('#svAll').innerHTML = TR.map((n, i) => `<figure><img src="${anh(n)}" alt="Trang ${i + 1}" loading="lazy"><figcaption>${i + 1}</figcaption></figure>`).join('');
-    $('#svAll').hidden = !on;
-  });
+  const coTen = BG.filter(m => m.tieude);
+  $('#bg').innerHTML = (coTen.length >= 3 ? `<nav class="bg-ml" aria-label="Mục lục bài giảng"><ol>${BG.map((m, i) => m.tieude ? `<li><a href="#bg-${i + 1}">${md(m.tieude)}</a></li>` : '').join('')}</ol></nav>` : '')
+    + BG.map((m, i) => {
+      // Mỗi trang một khối: chữ bên trái, ảnh chụp trang PDF (nếu có) bên phải, để chữ luôn nằm cạnh hình của chính trang đó.
+      const an = m.phan.filter(ks => !ks.some(k => k.t === 'goc' || k.t === 'chup')).map(ks => ks.ten);   // trang chưa hiện ảnh chụp: để ở "Xem slide gốc"
+      return `<article class="bg-muc" id="bg-${i + 1}">
+        ${m.tieude ? `<h3>${dong(m.tieude)}</h3>` : ''}
+        ${m.phan.map(ks => {
+          const goc = ks.find(k => k.t === 'goc');
+          return `<div class="bg-than${goc ? ' co-hinh' : ''}"><div class="bg-chu">${than(ks)}</div>${goc ? hinh(goc.ten, 'Hình trong trang', 'bg-hinh') : ''}</div>`;
+        }).join('')}
+        ${an.length ? `<details class="bg-goc"><summary>Xem slide gốc${an.length > 1 ? ` (${an.length} trang)` : ''}</summary>${an.map(n => hinh(n, 'Slide gốc', '')).join('')}</details>` : ''}
+      </article>`;
+    }).join('');
 }
 
 /* ---------- vocabulary ---------- */

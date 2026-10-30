@@ -1,7 +1,7 @@
 /* Vẽ từng slide của file .pptx thành ảnh để đưa nguyên trang slide vào giáo trình, kể cả slide toàn ảnh hoặc chữ không tách được.
    Vẽ gần đúng như PowerPoint: nền (của slide, bố cục, slide cái), ảnh (cắt, xoay, lật), hình khối có màu tô và viền,
    chữ (cỡ, đậm, màu, căn lề, xuống dòng, chữ dọc), bảng. Không vẽ biểu đồ, SmartArt, hiệu ứng.
-   Dùng: const ds = await veSlides(zip, {rong: 1600, tienDo: (i, n) => …}) → [{so: số trang, blob: ảnh JPEG}] */
+   Dùng: const ds = await veSlides(zip, {rong: 1600, tienDo: (i, n) => …}) → [{so: số trang, blob: ảnh JPEG, nd: chữ, ảnh, bảng của slide (xem noiDung)}] */
 (function () {
 const EMU_PT = 12700;
 const kids = (el, n) => el ? [...el.children].filter(c => c.localName === n) : [];
@@ -274,13 +274,21 @@ function timPh(tree, ph, theoIdx) {
 }
 const an = el => kid(el, 'nvSpPr', 'cNvPr')?.getAttribute('hidden') === '1' || kid(el, 'nvPicPr', 'cNvPr')?.getAttribute('hidden') === '1';
 
+/* Tọa độ các hình bên trong một nhóm hình (grpSp). */
+function trongNhom(el, T) {
+  const x = kid(el, 'grpSpPr', 'xfrm'), o = kid(x, 'off'), e = kid(x, 'ext'), co = kid(x, 'chOff'), ce = kid(x, 'chExt');
+  if (!o || !e) return T;
+  const rx = num(ce, 'cx') ? num(e, 'cx') / num(ce, 'cx') : 1, ry = num(ce, 'cy') ? num(e, 'cy') / num(ce, 'cy') : 1;
+  return {sx: T.sx * rx, sy: T.sy * ry, dx: T.dx + T.sx * (num(o, 'x') - num(co, 'x') * rx), dy: T.dy + T.sy * (num(o, 'y') - num(co, 'y') * ry)};
+}
+const xfOf = chain => chain.map(c => kid(c, 'spPr', 'xfrm') || kid(c, 'grpSpPr', 'xfrm') || kid(c, 'xfrm')).find(Boolean);
 async function ve(g, tree, P, T, boPh) {
   for (const el of tree ? tree.children : []) {
     if (an(el)) continue;
     const ph = phOf(el);
     if (boPh && ph) continue;   // chỗ dành sẵn trên bố cục / slide cái chỉ là khung mẫu
     const chain = P.laSlide && ph ? [el, timPh(P.L && P.L.tree, ph, true), timPh(P.M && P.M.tree, ph, false)].filter(Boolean) : [el];
-    const xf = chain.map(c => kid(c, 'spPr', 'xfrm') || kid(c, 'grpSpPr', 'xfrm') || kid(c, 'xfrm')).find(Boolean);
+    const xf = xfOf(chain);
     switch (el.localName) {
       case 'sp': case 'cxnSp': {
         const b = khung(xf, T); if (!b) break;
@@ -310,14 +318,9 @@ async function ve(g, tree, P, T, boPh) {
         });
         break;
       }
-      case 'grpSp': {
-        const x = kid(el, 'grpSpPr', 'xfrm'), o = kid(x, 'off'), e = kid(x, 'ext'), co = kid(x, 'chOff'), ce = kid(x, 'chExt');
-        if (!o || !e) { await ve(g, el, P, T, boPh); break; }
-        const rx = num(ce, 'cx') ? num(e, 'cx') / num(ce, 'cx') : 1, ry = num(ce, 'cy') ? num(e, 'cy') / num(ce, 'cy') : 1;
-        const T2 = {sx: T.sx * rx, sy: T.sy * ry, dx: T.dx + T.sx * (num(o, 'x') - num(co, 'x') * rx), dy: T.dy + T.sy * (num(o, 'y') - num(co, 'y') * ry)};
-        await ve(g, el, {...P, grpFill: nen(kid(el, 'grpSpPr'), null, P)}, T2, boPh);
+      case 'grpSp':
+        await ve(g, el, {...P, grpFill: nen(kid(el, 'grpSpPr'), null, P)}, trongNhom(el, T), boPh);
         break;
-      }
       case 'graphicFrame': {
         const tbl = kid(el, 'graphic', 'graphicData', 'tbl'), b = khung(xf, T);
         if (tbl && b) veBang(g, tbl, b, T, P);
@@ -364,6 +367,89 @@ function veBang(g, tbl, b, T, P) {
     }
     y += h;
   });
+}
+/* ---------- nội dung đọc được của slide, để giáo trình hiện như bài đọc trên web thay vì ảnh chụp ----------
+   → {tieude, khoi: [{t: 'p', s (chữ đậm bọc **…**), lv, cham: '•' | '#' | ''}, {t: 'anh', i: thứ tự r:embed trên slide, w: bề rộng / slide},
+   {t: 'bang', hang: [[ô…]…]}]}. Chỉ lấy hình của chính slide (khung mẫu ở bố cục, slide cái là trang trí). */
+function doanChu(p, srcs, n) {
+  let s = '';
+  for (const r of p.children) {
+    if (r.localName === 'br') { s += '\n'; continue; }
+    if (r.localName !== 'r' && r.localName !== 'fld') continue;
+    const t = (kid(r, 't') || {textContent: ''}).textContent;
+    s += t.trim() && rA(kid(r, 'rPr'), srcs, n, 'b') === '1' ? `**${t.trim()}**${/\s$/.test(t) ? ' ' : ''}` : t;
+  }
+  return s.replace(/\*\*\*\*/g, '').replace(/[ \t ]+/g, ' ').split('\n').map(x => x.trim()).filter(Boolean).join('\n');
+}
+/* Câu bị ngắt dòng tay ("Lượng từ chỉ số" / "thành viên trong" / "gia đình.") nối lại thành một đoạn: dòng trước chưa hết câu,
+   dòng sau viết thường, cùng cỡ chữ. Không nối dòng có chữ Hán, pinyin hay dấu ngoặc (dòng từ vựng, câu ví dụ). Dùng cả cho chữ PDF. */
+const LIEN = /[㐀-鿿(（āēīōūǖǎěǐǒǔǚǜ]/;
+const noiDuoc = (a, b) => { a = a.replace(/\*\*/g, ''); b = b.replace(/\*\*/g, ''); return !LIEN.test(a) && !LIEN.test(b) && !/[.!?:;。？！：；]$/.test(a) && /^\p{Ll}/u.test(b); };
+window.noiDong = ps => ps.reduce((o, p) => {
+  const s = p.s.split('\n').reduce((ls, l) => { if (ls.length && noiDuoc(ls.at(-1), l)) ls[ls.length - 1] += ' ' + l; else ls.push(l); return ls; }, []).join('\n');
+  const q = {...p, s}, tr = o.at(-1);
+  if (tr && !tr.cham && !q.cham && tr.lv === q.lv && Math.abs((tr.sz || 0) - (q.sz || 0)) <= (tr.sz || 0) * 0.1
+    && noiDuoc(tr.s.split('\n').at(-1), q.s.split('\n')[0])) tr.s += ' ' + q.s;
+  else o.push(q);
+  return o;
+}, []);
+function noiDung(S, W, H) {
+  const embeds = [...S.d.getElementsByTagName('*')].filter(e => e.hasAttribute('r:embed'));
+  const ds = [];
+  const anh = (blip, b) => {
+    const i = blip ? embeds.indexOf(blip) : -1;
+    if (i >= 0 && b.w * b.h > W * H * 0.004) ds.push({y: b.y, x: b.x, anh: i, w: b.w / W, nen: b.w * b.h > W * H * 0.8});
+  };
+  const di = (tree, T) => {
+    for (const el of tree ? tree.children : []) {
+      if (an(el)) continue;
+      const ph = phOf(el), loai = ph ? phLoai(ph) : '';
+      if (/^(dt|ftr|sldNum|hdr)$/.test(loai)) continue;
+      const chain = ph ? [el, timPh(S.L && S.L.tree, ph, true), timPh(S.M && S.M.tree, ph, false)].filter(Boolean) : [el];
+      const b = khung(xfOf(chain), T) || {x: 0, y: 0, w: 0, h: 0};
+      switch (el.localName) {
+        case 'sp': {
+          anh(kid(el, 'spPr', 'blipFill', 'blip'), b);
+          const tx = kid(el, 'txBody'); if (!tx) break;
+          const srcs = [...chain.map(c => kid(c, 'txBody', 'lstStyle')), ph ? S.txStyle(ph) : null, S.defStyle].filter(Boolean);
+          const fs = bodyOpt(chain.map(c => kid(c, 'txBody', 'bodyPr')), 1).fs;
+          const ps = kids(tx, 'p').map(p => {
+            const pPr = kid(p, 'pPr'), n = num(pPr, 'lvl', 0) + 1, s = doanChu(p, srcs, n);
+            return s && {t: 'p', s, lv: n - 1, cham: chamDau(pPr, srcs, n), sz: +(rA(kid(kids(p, 'r')[0], 'rPr'), srcs, n, 'sz') || 1800) * fs};
+          }).filter(Boolean);
+          if (ps.length) ds.push({y: b.y, x: b.x, tieu: loai === 'title', ps: noiDong(ps)});
+          break;
+        }
+        case 'pic': anh(kid(el, 'blipFill', 'blip'), b); break;
+        case 'grpSp': di(el, trongNhom(el, T)); break;
+        case 'graphicFrame': {
+          const tbl = kid(el, 'graphic', 'graphicData', 'tbl'); if (!tbl) break;
+          const o = tc => { const tx = kid(tc, 'txBody'); return kids(tx, 'p').map(p => doanChu(p, [kid(tx, 'lstStyle'), S.defStyle].filter(Boolean), 1)).filter(Boolean).join('\n'); };
+          const hang = kids(tbl, 'tr').map(tr => kids(tr, 'tc').filter(tc => tc.getAttribute('hMerge') !== '1').map(o)).filter(r => r.some(Boolean));
+          if (hang.length) ds.push({y: b.y, x: b.x, bang: hang});
+          break;
+        }
+        case 'AlternateContent': di(kid(el, 'Fallback') || kid(el, 'Choice'), T); break;
+      }
+    }
+  };
+  di(S.tree, {sx: 1, sy: 1, dx: 0, dy: 0});
+  // Đọc từ trên xuống; cùng hàng (lệch nhau dưới 4% chiều cao) thì từ trái sang.
+  ds.sort((a, b) => Math.abs(a.y - b.y) < H * 0.04 ? a.x - b.x : a.y - b.y);
+  const ps = ds.flatMap(d => d.ps || []), coChu = ps.length || ds.some(d => d.bang);
+  let tieude = ds.filter(d => d.tieu).flatMap(d => d.ps).map(p => p.s).join(' ');
+  if (!tieude && ps.length > 1) {   // không có ô tiêu đề: dòng chữ to hẳn, ngắn, ở phần trên slide
+    const sz = ps.map(p => p.sz).sort((a, b) => a - b), to = ps.reduce((m, p) => p.sz > m.sz ? p : m);
+    const d = ds.find(d => d.ps && d.ps.includes(to));
+    const cung = d.ps.filter(p => p.sz >= to.sz * 0.85);   // tiêu đề xuống dòng ("Từ" / "mới") cùng một ô chữ
+    tieude = cung.map(p => p.s).join(' ');
+    if (to.sz >= sz[sz.length >> 1] * 1.3 && tieude.length <= 40 && d.y < H * 0.35) d.ps = d.ps.filter(p => !cung.includes(p));
+    else tieude = '';
+  }
+  // Ảnh phủ gần kín slide có chữ đè lên là ảnh nền, bỏ.
+  const khoi = ds.filter(d => !d.tieu).flatMap(d => d.ps ? d.ps.map(({sz, ...p}) => p) : d.bang ? [{t: 'bang', hang: d.bang}]
+    : d.nen && coChu ? [] : [{t: 'anh', i: d.anh, w: +d.w.toFixed(2)}]);
+  return {tieude: tieude.replace(/\*\*/g, '').replace(/\n/g, ' '), khoi};
 }
 async function veNen(g, parts, W, H) {
   g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
@@ -456,7 +542,9 @@ window.veSlides = async function (zip, {rong = 1600, chat = 0.85, tienDo} = {}) 
       if (L && hien) await ve(g, L.tree, L, T0, true);
       await ve(g, S.tree, S, T0, false);
     } catch (e) { console.warn('Không vẽ hết được slide', sp, e); }
-    out.push({so: +((sp.match(/(\d+)\.xml$/) || [])[1] || i + 1), thu: i + 1, blob: await new Promise(r => c.toBlob(r, 'image/jpeg', chat))});
+    let nd = null;
+    try { nd = noiDung(S, cx, cy); } catch (e) { console.warn('Không đọc được chữ của slide', sp, e); }
+    out.push({so: +((sp.match(/(\d+)\.xml$/) || [])[1] || i + 1), thu: i + 1, nd, blob:await new Promise(r => c.toBlob(r, 'image/jpeg', chat))});
   }
   return out;
 };

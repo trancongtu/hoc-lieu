@@ -51,34 +51,33 @@ p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 
-/* bài giảng: ảnh từng trang slide */
-.sv{display:grid;gap:10px}
-.sv-stage{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:0 6px 24px rgb(0 0 0 / .08)}
-.sv-stage img{display:block;width:100%;height:auto;max-height:78vh;object-fit:contain;cursor:zoom-in;background:#fff}
-.sv-nav{position:absolute;top:50%;translate:0 -50%;width:44px;height:44px;border-radius:50%;border:0;background:rgb(0 0 0 / .45);color:#fff;font-size:1.8rem;line-height:1;display:grid;place-items:center;opacity:.75;transition:opacity .15s}
-.sv-nav:hover,.sv-nav:focus-visible{opacity:1}
-.sv-nav.prev{left:8px}.sv-nav.next{right:8px}
-.sv-x{display:none}
-.sv-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
-.sv-num{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
-.sv-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-.sv-acts svg{width:16px;height:16px}
-.sv-thumbs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity}
-.sv-thumbs button{flex:none;width:132px;padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);position:relative;scroll-snap-align:center}
-.sv-thumbs button[aria-current="true"]{border-color:var(--pri)}
-.sv-thumbs img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
-.sv-thumbs span{position:absolute;left:4px;bottom:4px;font-size:.72rem;font-weight:700;background:rgb(0 0 0 / .55);color:#fff;border-radius:4px;padding:0 5px}
-.sv-all{display:grid;gap:14px}
-.sv-all figure{margin:0;position:relative}
-.sv-all img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff}
-.sv-all figcaption{position:absolute;right:8px;bottom:8px;font-size:.75rem;font-weight:700;background:rgb(0 0 0 / .55);color:#fff;border-radius:4px;padding:0 6px}
-.sv.list .sv-stage,.sv.list .sv-thumbs,.sv.list .sv-num{display:none}
-/* Trình chiếu: phủ kín màn hình (chạy cả trên iPhone, nơi ảnh không vào được chế độ toàn màn hình) */
-.sv.full .sv-stage{position:fixed;inset:0;z-index:50;border:0;border-radius:0;background:#000;display:grid;place-items:center}
-.sv.full .sv-stage img{width:100vw;height:100vh;height:100dvh;aspect-ratio:auto;cursor:zoom-out;background:#000}
-.sv.full .sv-x{display:grid;place-items:center;position:absolute;top:max(10px,env(safe-area-inset-top,0px));right:10px;width:44px;height:44px;border-radius:50%;border:0;background:rgb(255 255 255 / .18);color:#fff;font-size:1.2rem}
-body.sv-on{overflow:hidden}
-@media (max-width:640px){.sv-nav{width:36px;height:36px;font-size:1.4rem}.sv-thumbs button{width:96px}}
+/* bài giảng: nội dung slide thành bài đọc */
+.bg{display:grid;gap:16px}
+.bg-ml{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.bg-ml ol{margin:0;padding-left:1.6em;columns:2 260px;column-gap:32px}
+.bg-ml li{break-inside:avoid;padding:2px 0}
+.bg-ml a{color:var(--ink);text-decoration:none}
+.bg-ml a:hover{color:var(--pri);text-decoration:underline}
+.bg-muc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;scroll-margin-top:64px;display:grid;gap:18px}
+.bg-muc>h3{font-size:1.3rem;padding-bottom:8px;border-bottom:2px solid var(--pri-soft)}
+.bg-than.co-hinh{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);gap:22px;align-items:start}
+.bg-chu{display:grid;gap:10px;font-size:1.05rem;line-height:1.7}
+.bg-chu .zh{font-size:1.15em}
+.bg-chu ul,.bg-chu ol{margin:0;padding-left:1.4em;display:grid;gap:4px}
+.bg-chu li::marker{color:var(--pri)}
+.bg-anh{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:center;margin-block:4px}
+.bg-anh img{display:block;height:auto;max-width:100%;border-radius:8px;background:#fff}
+.bg figure{margin:0}
+.bg figure img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+.bg-than+.bg-than{padding-top:18px;border-top:1px dashed var(--line)}
+.bg-bang{overflow-x:auto}
+.bg-bang table{border-collapse:collapse}
+.bg-bang td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
+.bg-bang tr:first-child td{background:var(--pri-soft);font-weight:600}
+.bg-goc{font-size:.9rem;color:var(--muted)}
+.bg-goc summary{cursor:pointer;width:fit-content}
+.bg-goc[open]{display:grid;gap:10px}
+@media (max-width:640px){.bg-than.co-hinh{grid-template-columns:1fr}.bg-muc{padding:16px}}
 
 /* hero */
 .hero{padding-block:28px 24px}
