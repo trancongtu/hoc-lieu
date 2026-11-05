@@ -739,6 +739,236 @@ async function docAnh(pdf, g) {
   });
   return kq;
 }
+/* PDF giáo trình dạng tình huống, có thể nhiều bài trong một file (Word xuất ra, có chữ thật):
+   "Bài 1: Tên bài" / tên chữ Hán / "I. Tình huống 1:" (lời thoại 3 dòng Hán, pinyin, Việt; "1. Từ vựng"; "2. Kiến thức ngôn ngữ")
+   / "II. Tình huống 2:" / "III. Luyện tập" (đúng/sai, chọn đáp án) / "ĐÁP ÁN THAM KHẢO". Trang trước bài đầu tiên (bìa, hồ sơ) không lấy. */
+const TH = {
+  BAI: /^Bài\s*(\d+)\s*[:：]\s*(.*)$/, MUC: /^(I{1,2})\.\s*Tình huống\s*(\d)\s*[:：]?\s*(.*)$/, LT: /^III\.\s*Luyện tập/, DA: /^ĐÁP ÁN/,
+  TU: /^(1\.\s*)?Từ (vựng|mới)\s*$/, KT: /^2\.\s*Kiến thức ngôn ngữ/, DE: /^(Bài tập|Bài|Câu)\s*\d\s*[.:：]\s*(.*)$/,
+  NOI: /^([㐀-鿿]{1,5})[.．]?\s*[：:]\s*(.*)$/, VAI: /^\p{L}[\p{L}\p{N}_'’ ]{0,24}?\s*[：:]\s*/u, CUOI: /^(Ngày …|（日期|Người khai\s*\/|供述人|Ký tên|（签名|Họ và tên:)/,
+  CHAM: /^[•●▪]\s*|^l\s+(?=[㐀-鿿])/, RIENG: /[ăâđêôơưạảãấầẩẫậắằẳẵặẹẻẽếềểễệỉĩịọỏõốồổỗộớờởỡợụủũứừửữựỳỵỷỹ]/i,
+  CHI_VIET: /[đơưạảấầậắằặẹẻẽếềệịọỏốồộớờợụủứừựỷ]/, DAU_BANG: ['TT', 'TT Từ vựng', 'Từ vựng', 'Từ mới', 'Phiên âm', 'Dịch nghĩa', 'Ý nghĩa'],
+};
+const sach = s => s.replace(/\|/g, '/').replace(/\s+/g, ' ').trim();
+/* Các bài trong file: mốc đầu bài, mốc "III. Luyện tập" (mục Bài giảng dừng ở đó để không lộ đáp án) và các dòng chữ. */
+function tachBaiTH(tho) {
+  const moc = [];
+  tho.forEach((t, p) => t.ds.forEach((l, i) => {
+    const m = l.s.match(TH.BAI);
+    if (m && !moc.some(x => x.so === +m[1]) && t.ds.slice(i + 1, i + 7).some(x => /Tình huống\s*1/.test(x.s))) moc.push({so: +m[1], nghia: m[2].trim(), p, y: l.y, fs: l.fs});
+  }));
+  moc.forEach((m, k) => {
+    const sau = moc[k + 1];
+    m.ls = []; m.ht = null;
+    for (let p = m.p; p <= (sau ? sau.p : tho.length - 1); p++) tho[p].ds.forEach((l, i) => {
+      if ((p === m.p && l.y > m.y + 0.5) || (sau && p === sau.p && l.y <= sau.y + 0.5)) return;
+      if (i === 0 && /^\d{1,3}$/.test(l.s)) return;   // số trang
+      if (!m.ht && TH.LT.test(l.s)) m.ht = {p, y: l.y, fs: l.fs};
+      m.ls.push(l.s);
+    });
+  });
+  return moc;
+}
+function dongTH(ls) {   // gộp dấu đầu dòng đứng riêng và "II." tách khỏi "Tình huống 2:"
+  const ra = []; let cham = false, ii = false;
+  ls.forEach(x => {
+    if (x === 'II.') { ii = true; return; }
+    if (ii) { x = 'II. ' + x; ii = false; }
+    if (['•', '●', 'l', ''].includes(x)) { cham = true; return; }
+    ra.push(cham ? '• ' + x : x); cham = false;
+  });
+  return ra;
+}
+function hoiThoaiTH(ls, canh) {
+  const cau = []; let tt = 'dau', c = null;
+  for (const x of ls) {
+    if (TH.CUOI.test(x)) tt = 'het';
+    if (tt === 'het') continue;
+    const m = x.match(TH.NOI);
+    if (m && (tt === 'dau' || tt === 'vi') && CJK.test(m[2])) { c = {w: m[1], z: m[2].trim(), p: '', v: ''}; cau.push(c); tt = 'zh'; }
+    else if (tt === 'zh') {
+      if (CJK.test(x) && !/^[A-Za-z]/.test(x)) c.z += x;
+      else { c.p = x.replace(TH.VAI, ''); tt = 'py'; }
+    } else if (tt === 'py') {
+      if ((TH.VAI.test(x) && TH.RIENG.test(x)) || (!CJK.test(x) && TH.CHI_VIET.test(x))) { c.v = x.replace(TH.VAI, ''); tt = 'vi'; }
+      else c.p += ' ' + x;
+    } else if (tt === 'vi' && !CJK.test(x) && !x.startsWith('!')) c.v += ' ' + x;
+  }
+  cau.filter(c => !(c.z && c.p && c.v)).forEach(c => canh.push(`Lượt thoại thiếu phần: ${c.w}: ${c.z}`));
+  return cau;
+}
+function tuVungTH(ls, nhom, canh) {
+  const hang = []; let cur = null;
+  ls.forEach(x => {
+    if (TH.DAU_BANG.includes(x) || TH.TU.test(x)) return;
+    const m = x.match(/^(\d+)\s*[.．]?\s*([㐀-鿿].*)?$/);
+    if (m) { cur = m[2] ? [m[2]] : []; hang.push(cur); }
+    else if (cur && cur.length >= 3 && /^[㐀-鿿]/.test(x)) { cur = [x]; hang.push(cur); }   // một ô số thứ tự chung hai hàng từ
+    else if (cur) cur.push(x);
+  });
+  const ra = [];
+  hang.forEach(h => {
+    const k = h.findIndex(x => !CJK.test(x));
+    if (k > 1 && h.length === 3 * k) { for (let i = 0; i < k; i++) ra.push(J([h[i], h[k + i], ' ', h[2 * k + i], nhom].map(sach))); return; }   // một ô hai từ
+    if (h.length < 3 || !CJK.test(h[0]) || CJK.test(h[1])) { canh.push(`Hàng từ vựng lạ: ${h.join(' / ')}`); return; }
+    ra.push(J([h[0], h[1], ' ', h.slice(2).join(' '), nhom].map(sach)));
+  });
+  return ra;
+}
+function tenHanTH(ten) {
+  const q = ten.match(/[“"]([^”"]+)[”"]/); if (q) return q[1].trim();
+  const m = ten.match(/[㐀-鿿…].*$/); if (!m) return '';
+  return m[0].split(/\s*→|\s*\+\s*[a-zA-Zà-ỹ]{2}|\s*[(（]\s*[a-zA-Zà-ỹ]|\s*[:：]|\s+(?=\S*[ăâđêôơưạảãấầẩẫậắằẳẵặẹẻẽếềểễệỉĩịọỏõốồổỗộớờởỡợụủũứừửữựỳỵỷỹ])/)[0].replace(/[\s+/]+$/, '');
+}
+function nguPhapTH(ls, canh) {
+  const khoi = []; let cur = null;
+  ls.forEach(x => {
+    const m = x.match(/^\((\d+)\)\s*(.*)$/);
+    if (m) { cur = {ten: m[2], ls: []}; khoi.push(cur); }
+    else if (cur) cur.ls.push(x);
+    else { cur = {ten: x, ls: []}; khoi.push(cur); }   // điểm ngữ pháp không đánh số
+  });
+  return khoi.map(k => {
+    const pat = [], ghi = [], ex = []; let vd = false, cuoi = '';
+    k.ls.forEach(x => {
+      if (/^Ví dụ\s*[:：]?\s*$/.test(x)) { vd = true; return; }
+      if (/^Cấu trúc\s*[:：]?\s*$/.test(x)) { vd = false; return; }
+      const c = TH.CHAM.test(x);
+      if (x.startsWith('+') && pat.length) pat[pat.length - 1] += ' ' + x;
+      else if (x.includes('+') && CJK.test(x) && x.length < 60 && !c) pat.push(x);
+      else if (c || (vd && CJK.test(x) && !TH.RIENG.test(x))) {
+        const s = x.replace(TH.CHAM, '').trim(), t = s.match(/^(.*[㐀-鿿。？！）…][。？！）”…]*)\s*([^㐀-鿿]*)$/);
+        cuoi = 'vd';
+        if (!CJK.test(s) || (t && TH.RIENG.test(t[1]))) { ghi.push(s); cuoi = 'ghi'; }   // gạch đầu dòng tiếng Việt: thuộc phần giải thích
+        else if (t && TH.RIENG.test(t[2])) ex.push([t[1], t[2].replace(/^[\s()]+|[\s()]+$/g, '')]);
+        else ex.push([s, '']);
+      } else if (ex.length && cuoi === 'vd' && !ex.at(-1)[1] && !CJK.test(x)) ex.at(-1)[1] = x;
+      else if (ex.length && cuoi === 'vd' && !CJK.test(x) && !x.endsWith(':') && /^\p{Ll}/u.test(x)) ex.at(-1)[1] += ' ' + x;
+      else { ghi.push(x); cuoi = 'ghi'; }
+    });
+    ex.filter(e => !e[1]).forEach(e => canh.push(`Ví dụ thiếu nghĩa: ${e[0]}`));
+    const cauVd = ex.map(([z, v]) => sach(v ? `${z} = ${v}` : z).replace(/;/g, ',')).join('; ');
+    return J([tenHanTH(k.ten), k.ten, pat.join(' · '), cauVd, ghi.join(' ')].map(sach));
+  });
+}
+function baiTapTH(ls, da, canh) {
+  const de = []; let cur = null;
+  ls.forEach(x => { const m = x.match(TH.DE); if (m) { cur = {tieude: m[2].replace(/[:：\s]+$/, ''), ls: []}; de.push(cur); } else if (cur) cur.ls.push(x); });
+  const dap = [];
+  da.forEach(x => { if (TH.DE.test(x)) dap.push([]); else if (dap.length) dap.at(-1).push(x); });
+  const ra = [];
+  de.forEach((d, i) => {
+    const phan = d.ls.join('\n').split(/^(\d+)\s*[.．]\s*/m), cac = [];
+    for (let k = 2; k < phan.length; k += 2) { const q = phan[k].trim(); if (!cac.includes(q)) cac.push(q); }   // PDF có chỗ lặp câu
+    const an = [...(dap[i] || []).join(' ').matchAll(/(\d+)\s*[.．][\s.．]*([✔✓✘✗×ABCD])/g)].sort((a, b) => a[1] - b[1]).map(m => m[2]);
+    if (an.length !== cac.length) { canh.push(`Bài tập ${i + 1}: ${cac.length} câu nhưng đọc được ${an.length} đáp án, chưa đưa vào.`); return; }
+    const dong = [];
+    cac.forEach((q, j) => {
+      const a = an[j];
+      if ('✔✓✘✗×'.includes(a)) { dong.push(J([sach(q.replace(/\(\s*\)\s*$/, '')), a === '✔' || a === '✓' ? '*Đúng' : 'Đúng', a === '✔' || a === '✓' ? 'Sai' : '*Sai'])); return; }
+      const m = q.split(/(?<![A-Za-z])([A-D])\s*[.．]\s*/), o = {};
+      for (let k = 1; k < m.length - 1; k += 2) o[m[k]] = sach(m[k + 1]);
+      const chu = Object.keys(o).sort();
+      if (chu.join('') !== 'ABCD'.slice(0, chu.length) || chu.length < 2 || !o[a]) { canh.push(`Câu trắc nghiệm chưa đọc được: ${sach(q)}`); return; }
+      dong.push(J([sach(m[0]), ...chu.map(c => (c === a ? '*' : '') + o[c])]));
+    });
+    ra.push({loai: 'tracnghiem', tieude: d.tieude, text: dong.join('\n')});
+  });
+  return ra;
+}
+/* Nội dung một bài ở dạng chữ của các ô nhập, giống khi thầy cô tự gõ vào. */
+function docBaiTH(m) {
+  const ls = dongTH(m.ls), canh = [], tim = re => ls.findIndex(x => re.test(x));
+  const k1 = ls.findIndex(x => (x.match(TH.MUC) || [])[1] === 'I'), k2 = ls.findIndex(x => (x.match(TH.MUC) || [])[1] === 'II'), k3 = tim(TH.LT), k4 = tim(TH.DA);
+  if ([k1, k2, k3, k4].includes(-1)) return null;
+  const r = {ten: sach(ls[1]), tumoi: [], nguphap: [], hoithoai: [], exs: baiTapTH(ls.slice(k3 + 1, k4), ls.slice(k4), canh), canh};
+  [[1, k1, k2], [2, k2, k3]].forEach(([so, a, b]) => {
+    const dau = ls[a].match(TH.MUC), d = [...(dau[3] ? [dau[3]] : []), ...ls.slice(a + 1, b)];
+    let kKt = d.findIndex(x => TH.KT.test(x));
+    if (kKt < 0) { canh.push(`Tình huống ${so}: không thấy mục Kiến thức ngôn ngữ.`); kKt = d.length; }
+    let kTu = d.findIndex(x => TH.TU.test(x));
+    if (kTu < 0) kTu = d.indexOf('TT');
+    if (kTu < 0) { canh.push(`Tình huống ${so}: không thấy mục Từ vựng.`); kTu = kKt; }
+    // Tên tình huống: tên tiếng Việt (có thể xuống dòng) rồi tên chữ Hán, hoặc chung một dòng.
+    let vi = '', zh = '', i = 0;
+    while (i < d.length && !CJK.test(d[i]) && !d[i].startsWith('(')) vi = (vi + ' ' + d[i++]).trim();
+    if (i < d.length && !TH.NOI.test(d[i]) && CJK.test(d[i])) {
+      const x = d[i++], t = x.match(/^(.*[㐀-鿿。，])\s+([^㐀-鿿]+)$/) || x.match(/^([^㐀-鿿]+?)[\s:：]+([㐀-鿿].*)$/);
+      if (t) { const hanTruoc = CJK.test(t[1]); zh = (hanTruoc ? t[1] : t[2]).trim(); vi ||= (hanTruoc ? t[2] : t[1]).trim(); }
+      else zh = x;
+      if (!vi && i < d.length && !CJK.test(d[i]) && !d[i].startsWith('(')) vi = d[i++];
+    }
+    r.hoithoai.push(J([`TH${so}`, sach(zh), ' ', sach(vi)]));
+    hoiThoaiTH(d.slice(i, kTu), canh).forEach(c => r.hoithoai.push(J([c.w, sach(c.z), sach(c.p), sach(c.v)])));
+    r.tumoi.push(...tuVungTH(d.slice(kTu, kKt), `Tình huống ${so}`, canh));
+    r.nguphap.push(...nguPhapTH(d.slice(kKt + 1), canh));
+  });
+  return r;
+}
+/* Chụp phần trang thuộc bài: cắt theo chiều dọc ở trang có bài khác hoặc phần Luyện tập. */
+async function chupDoan(pg, tren, duoi) {
+  const vp = pg.getViewport({scale: 1600 / pg.getViewport({scale: 1}).width});
+  const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+  await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+  const y0 = tren == null ? 0 : Math.max(0, vp.convertToViewportPoint(0, tren)[1]), y1 = duoi == null ? c.height : Math.min(c.height, vp.convertToViewportPoint(0, duoi)[1]);
+  if (y1 - y0 < 60) return null;
+  const o = document.createElement('canvas'); o.width = c.width; o.height = y1 - y0;
+  o.getContext('2d').drawImage(c, 0, -y0);
+  return new Promise(r => o.toBlob(r, 'image/jpeg', 0.85));
+}
+let BO_TH = null;   // file nhiều bài vừa nạp: {file, pdf, tho, bai}
+async function soanBaiTH(so) {
+  const {file, pdf, tho, bai, cap} = BO_TH, m = bai.find(x => x.so === so);
+  if (dirty && !confirm('Bài đang soạn chưa lưu sẽ bị thay thế. Tiếp tục?')) return;
+  const r = docBaiTH(m);
+  if (!r) { logFile(file.name, [{t: `Bài ${so}: không tìm đủ các phần (tình huống, luyện tập, đáp án).`, cls: 'err'}]); return; }
+  await openLesson('');
+  location.hash = 'soan';
+  const dirTrung = list().some(x => x.dir === 'bai' + so);   // không chiếm thư mục của bài đang có cùng số
+  $('#so').value = so; $('#dir').value = dirTrung ? `bai${so}-2` : 'bai' + so;
+  $('#ten').value = r.ten; $('#nghia').value = m.nghia;
+  if (cap) $('#cap').value = cap;
+  $('#tumoi').value = r.tumoi.join('\n'); $('#nguphap').value = r.nguphap.join('\n'); $('#hoithoai').value = r.hoithoai.join('\n');
+  S.exs = r.exs; drawExs(); setXuat('full');
+  try { if (!window.pinyinPro) await loadScript(PINYIN_LIB); $('#pinyin').value = pinyinPro.pinyin(r.ten); } catch {}
+  const het = m.ht || {p: tho.length - 1, y: null}, ds = [];
+  for (let p = m.p; p <= het.p; p++) {
+    toast(`Đang chụp trang ${p - m.p + 1}/${het.p - m.p + 1} của Bài ${so}…`);
+    const tren = p === m.p ? m.y + m.fs * 1.2 : null, duoi = p === het.p && het.y != null ? het.y + het.fs * 1.2 : null;
+    const dong = tho[p].ds.filter((l, i) => !(i === 0 && /^\d{1,3}$/.test(l.s)) && !(p === m.p && l.y > m.y + 0.5) && !(p === het.p && het.y != null && l.y >= het.y - 0.5));
+    if (!dong.length && !tho[p].coAnh) continue;
+    const blob = await chupDoan(await pdf.getPage(p + 1), tren, duoi);
+    if (blob) ds.push({blob, nd: ndTrang(dong, tho[p].coAnh)});
+  }
+  await datTrang({name: `${file.name} bài ${so}`}, 'pdf', ds);
+  if (ds[0]) $('#anhbia').dataset.want = await addImage('bia.jpg', ds[0].blob);
+  logFile(`Bài ${so} (từ ${file.name})`, [
+    {t: `Thông tin bài: Bài ${so} · ${r.ten} · ${m.nghia}`, go: 'box-info'},
+    ...(dirTrung ? [{t: `Đã có bài trong thư mục bai${so}, bài này để ở bai${so}-2 để không ghi đè.`, cls: 'warn', go: 'box-info'}] : []),
+    {t: `Từ mới: ${r.tumoi.length} từ, chưa có từ loại vì file không ghi.`, go: 'box-tumoi'},
+    {t: `Ngữ pháp: ${r.nguphap.length} điểm`, go: 'box-nguphap'},
+    {t: `Hội thoại: ${r.hoithoai.length - 2} lượt, 2 tình huống`, go: 'box-hoithoai'},
+    {t: `Bài tập: ${r.exs.length} bài (${r.exs.map(x => x.text.split('\n').length + ' câu').join(', ')}), đã đánh dấu đáp án.`, go: 'box-baitap'},
+    {t: `Bài giảng: ${ds.length} trang, dừng trước phần Luyện tập để không lộ đáp án.`, go: 'box-info'},
+    ...r.canh.map(t => ({t, cls: 'warn'})),
+  ]);
+  drawGallery(); changed(); render();
+}
+$('#log').addEventListener('click', e => {
+  const b = e.target.closest('[data-bai-th]'); if (!b) return;
+  dangNap = dangNap.then(() => soanBaiTH(+b.dataset.baiTh)).catch(err => toast('Không nạp được: ' + (err.message || err)));
+});
+/* Một trang PDF thành mục Bài giảng: dòng chữ to hẳn ở đầu trang làm tiêu đề, còn lại thành đoạn (dòng có dấu • - thành ý gạch đầu dòng).
+   Ảnh trong PDF không tách riêng được: trang có ảnh thì kèm ảnh chụp trang làm hình minh họa ({t: 'goc'}). */
+function ndTrang(dong, coAnh) {
+  const ds = [...dong], giua = ds.map(l => l.fs).sort((a, b) => a - b)[ds.length >> 1] || 0;
+  let tieude = '';
+  // Trang chỉ có một dòng chữ (vd. "Từ vựng" trên trang toàn ảnh) thì dòng đó là tiêu đề, trang hiện ảnh chụp.
+  if (ds[0] && ds[0].s.length <= 40 && (ds.length === 1 || ds[0].fs >= giua * 1.3)) tieude = ds.shift().s;
+  const khoi = noiDong(ds.map(l => { const m = l.s.match(/^[•●▪■◆\-–]\s*(.+)/); return {t: 'p', s: m ? m[1] : l.s, lv: 0, cham: m ? '•' : '', sz: l.fs}; }))
+    .map(({sz, ...p}) => p);
+  return {tieude, khoi: coAnh && khoi.length ? [...khoi, {t: 'goc'}] : khoi};
+}
 async function napPdf(file) {
   if (!window.pdfjsLib) {
     await loadScript('khung/lib/pdf.min.js');
@@ -747,7 +977,7 @@ async function napPdf(file) {
   const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
   // Ghép các mảnh chữ cùng độ cao thành dòng theo khoảng cách thật giữa chúng: sát nhau thì liền chữ,
   // cách cỡ một dấu cách thì thêm dấu cách, cách xa (hai cột trên cùng hàng) thì tách thành hai dòng.
-  const pages = [], nd = [];
+  const pages = [], nd = [], tho = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const rows = [], pg = await pdf.getPage(i);
     for (const it of (await pg.getTextContent()).items) {
@@ -757,30 +987,35 @@ async function napPdf(file) {
       if (!r) rows.push(r = {y, parts: []});
       r.parts.push({x: it.transform[4], w: it.width, fs, s: it.str});
     }
-    const lines = [], fs = [];
+    const lines = [], fs = [], ys = [];
     rows.sort((a, b) => b.y - a.y).forEach(r => {
       let cur = '', end = null, to = 0;
       r.parts.sort((a, b) => a.x - b.x).forEach(p => {
         const gap = end == null ? 0 : p.x - end;
-        if (end != null && gap > p.fs * 1.5) { lines.push(cur); fs.push(to); cur = ''; to = 0; }
+        if (end != null && gap > p.fs * 1.5) { lines.push(cur); fs.push(to); ys.push(r.y); cur = ''; to = 0; }
         else if (end != null && gap > p.fs * 0.2) cur += ' ';
         cur += p.s; end = p.x + p.w; to = Math.max(to, p.fs);
       });
-      lines.push(cur); fs.push(to);
+      lines.push(cur); fs.push(to); ys.push(r.y);
     });
-    const ds = lines.map((l, k) => ({s: l.replace(/\s+/g, ' ').trim(), fs: fs[k]})).filter(l => l.s);
+    const ds = lines.map((l, k) => ({s: l.replace(/\s+/g, ' ').trim(), fs: fs[k], y: ys[k]})).filter(l => l.s);
     pages.push(ds.map(l => l.s));
-    // Nội dung đọc cho mục Bài giảng: dòng chữ to hẳn ở đầu trang làm tiêu đề, còn lại thành đoạn (dòng có dấu • - thành ý gạch đầu dòng).
-    // Ảnh trong PDF không tách riêng được: trang có ảnh thì kèm ảnh chụp trang làm hình minh họa ({t: 'goc'}).
     const O = pdfjsLib.OPS, op = (await pg.getOperatorList()).fnArray;
     const coAnh = op.some(f => f === O.paintImageXObject || f === O.paintInlineImageXObject || f === O.paintImageXObjectRepeat || f === O.paintImageMaskXObject);
-    const giua = ds.map(l => l.fs).sort((a, b) => a - b)[ds.length >> 1] || 0;
-    let tieude = '';
-    // Trang chỉ có một dòng chữ (vd. "Từ vựng" trên trang toàn ảnh) thì dòng đó là tiêu đề, trang hiện ảnh chụp.
-    if (ds[0] && ds[0].s.length <= 40 && (ds.length === 1 || ds[0].fs >= giua * 1.3)) tieude = ds.shift().s;
-    const khoi = noiDong(ds.map(l => { const m = l.s.match(/^[•●▪■◆\-–]\s*(.+)/); return {t: 'p', s: m ? m[1] : l.s, lv: 0, cham: m ? '•' : '', sz: l.fs}; }))
-      .map(({sz, ...p}) => p);
-    nd.push({tieude, khoi: coAnh && khoi.length ? [...khoi, {t: 'goc'}] : khoi});
+    tho.push({ds, coAnh});
+    nd.push(ndTrang(ds, coAnh));
+  }
+  // PDF dạng tình huống: một bài thì soạn luôn; nhiều bài thì thầy cô chọn bài, mỗi bài soạn và lưu riêng như bình thường.
+  const baiTH = tachBaiTH(tho);
+  if (baiTH.length) {
+    const kh = pages.slice(0, baiTH[0].p).flat().find(l => /^KHÓA HỌC\s+\S/i.test(l));
+    const cap = kh ? kh.replace(/^KHÓA HỌC\s+/i, '').toLowerCase().replace(/^\p{L}/u, c => c.toUpperCase()).replace(/\btrung\b/, 'Trung') : '';
+    BO_TH = {file, pdf, tho, bai: baiTH, cap};
+    if (baiTH.length === 1) return soanBaiTH(baiTH[0].so);
+    $('#log').insertAdjacentHTML('beforeend', `<div class="res"><div class="rh"><span class="tag d">PDF</span><b>${esc(file.name)}</b></div>
+      <ul><li>Tìm thấy ${baiTH.length} bài${baiTH[0].p ? `, bỏ qua ${baiTH[0].p} trang đứng trước Bài ${baiTH[0].so} (bìa, hồ sơ)` : ''}. Bấm để soạn từng bài, lưu xong bấm bài tiếp theo:</li></ul>
+      <div class="acts" style="flex-wrap:wrap">${baiTH.map(m => `<button type="button" class="btn sm" data-bai-th="${m.so}" title="${esc(m.nghia)}">Bài ${m.so}</button>`).join('')}</div></div>`);
+    return;
   }
   let g = docGiaoTrinh(pages, file.name), ocr = null, ocrLoi = '';
   const got = [];
