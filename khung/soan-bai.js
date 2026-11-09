@@ -954,10 +954,12 @@ function tachBaiTH(tho) {
   }));
   moc.forEach((m, k) => {
     const sau = moc[k + 1];
-    m.ls = [];
-    for (let p = m.p; p <= (sau ? sau.p : tho.length - 1); p++) tho[p].ds.forEach((l, i) => {
+    m.ls = []; m.ht = null;   // ht: mốc "III. Luyện tập", mục Bài giảng dừng ở đó để không lộ đáp án
+    m.het = sau ? {p: sau.p, y: sau.y} : {p: tho.length - 1, y: null};
+    for (let p = m.p; p <= m.het.p; p++) tho[p].ds.forEach((l, i) => {
       if ((p === m.p && l.y > m.y + 0.5) || (sau && p === sau.p && l.y <= sau.y + 0.5)) return;
       if (i === 0 && /^\d{1,3}$/.test(l.s)) return;   // số trang
+      if (!m.ht && TH.LT.test(l.s)) m.ht = {p, y: l.y};
       m.ls.push(l.s);
     });
   });
@@ -1099,7 +1101,25 @@ function docBaiTH(m) {
   });
   return r;
 }
-let BO_TH = null;   // file nhiều bài vừa nạp: {file, bai, cap}
+let BO_TH = null;   // file nhiều bài vừa nạp: {file, pdf, tho, vungTrang, bai, cap}
+/* Mục Bài giảng của một bài: các trang từ dòng "Bài N:" đến trước "III. Luyện tập" (không có thì đến bài sau),
+   chữ thành bài đọc, ảnh nằm trong phần của bài được cắt riêng. Trang dùng chung với bài khác chỉ lấy phần của bài này. */
+async function baiGiangTH(m) {
+  const {pdf, tho, vungTrang} = BO_TH, het = m.ht || m.het, ds = [];
+  for (let p = m.p; p <= het.p; p++) {
+    toast(`Đang đọc trang ${p - m.p + 1}/${het.p - m.p + 1} của Bài ${m.so}…`);
+    const tren = p === m.p ? m.y : null, duoi = p === het.p ? het.y : null;   // tọa độ PDF: y lớn là ở trên
+    const dong = tho[p].ds.filter((l, i) => !(i === 0 && /^\d{1,3}$/.test(l.s)) && !(tren != null && l.y > tren + 0.5) && !(duoi != null && l.y <= duoi + 0.5));
+    const vp = tho[p].vp, tl = y => vp.convertToViewportPoint(0, y)[1] / vp.height;   // y của PDF → tỉ lệ từ mép trên trang
+    const a = tren != null ? tl(tren) - 0.02 : 0, b = duoi != null ? tl(duoi) - 0.005 : 1;
+    const vung = (vungTrang[p] || []).filter(v => (v.y0 + v.y1) / 2 >= a && (v.y0 + v.y1) / 2 <= b);
+    if (!dong.length && !vung.length) continue;
+    const anh = await chupTrang(await pdf.getPage(p + 1), 1600, vung);
+    ds.push({blob: anh.blob, hinh: anh.hinh, nd: ndTrang(dong, anh.hinh.length > 0)});
+  }
+  if (ds.length) await datTrang({name: `${BO_TH.file.name} bài ${m.so}`}, 'pdf', ds);
+  return ds;
+}
 async function soanBaiTH(so) {
   const {file, bai, cap} = BO_TH, m = bai.find(x => x.so === so);
   if (dirty && !confirm('Bài đang soạn chưa lưu sẽ bị thay thế. Tiếp tục?')) return;
@@ -1117,6 +1137,9 @@ async function soanBaiTH(so) {
   // Không chụp trang PDF vào bài: bìa dựng kiểu web, ảnh minh họa do thầy cô tải vào khung ở mục 9.
   $('#anhbia').dataset.want = ''; drawGallery(BIA_WEB);
   S.minhhoa = [{vitri: 'th-1'}, {vitri: 'th-2'}]; drawMinhHoa();
+  let bg = [], bgLoi = '';
+  try { bg = await baiGiangTH(m); } catch (e) { bgLoi = e.message || String(e); }
+  const soHinh = bg.reduce((n, x) => n + x.hinh.length, 0);
   logFile(`Bài ${so} (từ ${file.name})`, [
     {t: `Thông tin bài: Bài ${so} · ${r.ten} · ${m.nghia}`, go: 'box-info'},
     ...(dirTrung ? [{t: `Đã có bài trong thư mục bai${so}, bài này để ở bai${so}-2 để không ghi đè.`, cls: 'warn', go: 'box-info'}] : []),
@@ -1124,10 +1147,12 @@ async function soanBaiTH(so) {
     {t: `Ngữ pháp: ${r.nguphap.length} điểm`, go: 'box-nguphap'},
     {t: `Hội thoại: ${r.hoithoai.length - 2} lượt, 2 tình huống`, go: 'box-hoithoai'},
     {t: `Bài tập: ${r.exs.length} bài (${r.exs.map(x => x.text.split('\n').length + ' câu').join(', ')}), đã đánh dấu đáp án.`, go: 'box-baitap'},
+    bgLoi ? {t: `Bài giảng: không đọc được (${bgLoi}).`, cls: 'warn', go: 'box-info'}
+      : {t: `Bài giảng: ${bg.length} trang thành bài đọc${soHinh ? `, cắt riêng ${soHinh} ảnh` : ''}${m.ht ? ', dừng trước phần Luyện tập để không lộ đáp án' : ''}.`, go: 'box-info'},
     {t: 'Ảnh minh họa: có 2 khung trước mỗi tình huống, tải ảnh hoặc tích “Bỏ ảnh” ở mục 9.', go: 'box-anh'},
     ...r.canh.map(t => ({t, cls: 'warn'})),
   ]);
-  changed(); render();
+  drawGallery(); changed(); render();
 }
 $('#log').addEventListener('click', e => {
   const b = e.target.closest('[data-bai-th]'); if (!b) return;
@@ -1180,7 +1205,7 @@ async function napPdf(file) {
     let vung = [];
     try { vung = coAnh ? vungAnh(ol, pg.getViewport({scale: 1})) : []; } catch {}
     vungTrang.push(vung);
-    tho.push({ds, coAnh});
+    tho.push({ds, coAnh, vp: pg.getViewport({scale: 1})});
     nd.push(ndTrang(ds, coAnh));
   }
   // PDF dạng tình huống: một bài thì soạn luôn; nhiều bài thì thầy cô chọn bài, mỗi bài soạn và lưu riêng như bình thường.
@@ -1188,7 +1213,7 @@ async function napPdf(file) {
   if (baiTH.length) {
     const kh = pages.slice(0, baiTH[0].p).flat().find(l => /^KHÓA HỌC\s+\S/i.test(l));
     const cap = kh ? kh.replace(/^KHÓA HỌC\s+/i, '').toLowerCase().replace(/^\p{L}/u, c => c.toUpperCase()).replace(/\btrung\b/, 'Trung') : '';
-    BO_TH = {file, bai: baiTH, cap};
+    BO_TH = {file, pdf, tho, vungTrang, bai: baiTH, cap};
     if (baiTH.length === 1) return soanBaiTH(baiTH[0].so);
     $('#log').insertAdjacentHTML('beforeend', `<div class="res"><div class="rh"><span class="tag d">PDF</span><b>${esc(file.name)}</b></div>
       <ul><li>Tìm thấy ${baiTH.length} bài${baiTH[0].p ? `, bỏ qua ${baiTH[0].p} trang đứng trước Bài ${baiTH[0].so} (bìa, hồ sơ)` : ''}. Bấm để soạn từng bài, lưu xong bấm bài tiếp theo:</li></ul>
