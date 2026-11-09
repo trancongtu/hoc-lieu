@@ -1862,7 +1862,8 @@ async function drawDocs() {
   }).join('');
 }
 $('#docsReload').addEventListener('click', () => { CAY = null; drawDocs(); });
-$('#docs').addEventListener('click', async e => {
+// Nút Xóa bài ở trang Tài liệu và trang Bài đã xuất.
+document.addEventListener('click', async e => {
   const b = e.target.closest('[data-xoa]'); if (!b) return;
   const l = list().find(x => x.dir === b.dataset.xoa); if (!l) return;
   if (!confirm(`Xóa hẳn Bài ${l.so} · ${l.ten}?\n\nCả trang bài, ảnh và tài liệu gốc sẽ bị gỡ khỏi web. Học sinh không mở được nữa, mã QR đã phát cũng hết dùng được.`)) return;
@@ -1871,7 +1872,7 @@ $('#docs').addEventListener('click', async e => {
     const L2 = await thuLai(() => xoaBai(l));
     window.DANH_SACH = L2; CAY = null;
     if (S.sua === l.dir) { dirty = false; await openLesson(''); } else drawPick();
-    drawDocs();
+    if (location.hash === '#da-xuat') drawPubs(); else drawDocs();
     toast(`Đã xóa Bài ${l.so}. Khoảng 1–2 phút nữa trang web sẽ cập nhật.`);
   } catch (err) { loiGh(err, 'xóa'); b.disabled = false; b.textContent = 'Xóa bài'; }
 });
@@ -1892,7 +1893,8 @@ async function drawPubs() {
     return `<li>${dau(l)}${chua ? '<span class="badge warn">Chưa có trên GitHub</span>' : ''}</div>
       <div class="hint">${XUAT[l.xuat || 'full']}${l.slide ? ' · có slide thuyết trình' : ''}</div>
       <div class="acts"><button class="btn primary sm" data-qr="${esc(l.dir)}">Mã QR</button>
-        ${qrDich(l).map(([to, t]) => `<a class="btn sm" href="${esc(SITE + l.dir + '/' + to)}" target="_blank" rel="noopener">Mở ${t.toLowerCase()}</a>`).join('')}</div></li>`;
+        ${qrDich(l).map(([to, t]) => `<a class="btn sm" href="${esc(SITE + l.dir + '/' + to)}" target="_blank" rel="noopener">Mở ${t.toLowerCase()}</a>`).join('')}
+        <button class="btn sm" data-sua="${esc(l.dir)}">Sửa bài</button><button class="btn sm danger" data-xoa="${esc(l.dir)}">Xóa bài</button></div></li>`;
   }).join('');
   draw(null);
   try { draw(await cay()); } catch {}
