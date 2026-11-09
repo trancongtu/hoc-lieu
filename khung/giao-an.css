@@ -60,7 +60,7 @@ button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible
 .bg-ml a:hover{color:var(--pri);text-decoration:underline}
 .bg-muc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;scroll-margin-top:64px;display:grid;gap:18px}
 .bg-muc>h3{font-size:1.3rem;padding-bottom:8px;border-bottom:2px solid var(--pri-soft)}
-.bg-than.co-hinh{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);gap:22px;align-items:start}
+.bg-than.co-hinh{display:grid;gap:18px}
 .bg-chu{display:grid;gap:10px;font-size:1.05rem;line-height:1.7}
 .bg-chu .zh{font-size:1.15em}
 .bg-chu ul,.bg-chu ol{margin:0;padding-left:1.4em;display:grid;gap:4px}
@@ -74,7 +74,10 @@ button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible
 .bg-bang table{border-collapse:collapse}
 .bg-bang td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
 .bg-bang tr:first-child td{background:var(--pri-soft);font-weight:600}
-.bg-hinhs{display:grid;gap:12px}
+/* Ảnh trong trang: dòng riêng, ở giữa, giữ cỡ gốc (không phóng to quá cỡ thật cho khỏi vỡ), không tràn khung. */
+.bg-hinhs{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:14px}
+.bg figure.bg-hinh{width:fit-content;max-width:100%}
+.bg figure.bg-hinh img{width:auto;max-width:100%;max-height:640px;margin-inline:auto}
 .bg-anh figure{margin:0}
 .bg-anh figure img{width:100%}
 .co-sua{position:relative}
@@ -195,6 +198,30 @@ details.plan summary{padding:14px 16px;font-weight:600;cursor:pointer}
 .line .p{color:var(--pri);font-size:.92rem}
 .line .vi{color:var(--muted);font-size:.9rem}
 .line.now{background:var(--pri-soft);margin-inline:-16px;padding-inline:16px}
+.who small{display:none}
+#noiVai[aria-pressed="true"]{background:var(--pri-soft);border-color:var(--pri);color:var(--pri)}
+.sec-head #noiVai{margin-left:auto}.sec-head #noiVai+#playAll{margin-left:8px}
+/* Làm nổi vai: cảnh sát xanh đậm, chữ đứng đậm; công dân nâu cam, chữ có chân, nghiêng phần tiếng Việt. */
+.dlg.noi-vai .line[data-vai]{grid-template-columns:auto 1fr auto}
+.dlg.noi-vai .line[data-vai] .who{width:auto;height:auto;min-width:64px;border-radius:10px;padding:5px 9px;display:grid;gap:1px;line-height:1.2;text-align:center}
+.dlg.noi-vai .line[data-vai] .who small{display:block;font-size:.68rem;font-weight:600;font-family:"Be Vietnam Pro",system-ui,sans-serif;letter-spacing:.02em}
+.dlg.noi-vai .line[data-vai="canhsat"] .who{background:#1d3f8f;color:#fff}
+.dlg.noi-vai .line[data-vai="canhsat"]>div{border-left:4px solid #1d3f8f;padding-left:12px}
+.dlg.noi-vai .line[data-vai="canhsat"] .zh{font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",system-ui,sans-serif;font-weight:700;color:#1d3f8f}
+.dlg.noi-vai .line[data-vai="canhsat"] .p{color:#2f5fc4}
+.dlg.noi-vai .line[data-vai="canhsat"] .vi{font-family:"Be Vietnam Pro",system-ui,sans-serif;font-weight:600;color:#33415c}
+.dlg.noi-vai .line[data-vai="congdan"] .who{background:#fde8d4;color:#9a3c0a;border:1.5px solid #e9a46b}
+.dlg.noi-vai .line[data-vai="congdan"]>div{border-left:4px dashed #d9772e;padding-left:12px}
+.dlg.noi-vai .line[data-vai="congdan"] .zh{font-family:"Noto Serif SC","Songti SC",serif;font-weight:500;color:#9a3c0a}
+.dlg.noi-vai .line[data-vai="congdan"] .p{color:#c2601c}
+.dlg.noi-vai .line[data-vai="congdan"] .vi{font-family:"Noto Serif",Georgia,serif;font-style:italic;color:#6b4a35}
+@media (prefers-color-scheme:dark){
+  .dlg.noi-vai .line[data-vai="canhsat"] .zh,.dlg.noi-vai .line[data-vai="canhsat"] .p{color:#8fb0ff}
+  .dlg.noi-vai .line[data-vai="canhsat"] .vi{color:#c9d3ea}
+  .dlg.noi-vai .line[data-vai="congdan"] .zh,.dlg.noi-vai .line[data-vai="congdan"] .p{color:#f5a76a}
+  .dlg.noi-vai .line[data-vai="congdan"] .vi{color:#e3cbb8}
+}
+.ve-chu{display:grid;place-items:center;width:110px;height:110px;font-size:72px;line-height:1}
 
 /* exercises */
 .ex-block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:18px}

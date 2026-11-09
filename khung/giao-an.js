@@ -107,7 +107,7 @@ ${G.length ? `<section id="ngu-phap"><div class="wrap">
   <div class="gram" id="gram"></div>
 </div></section>` : ''}
 ${D.length ? `<section id="hoi-thoai"><div class="wrap">
-  <div class="sec-head"><h2>Hội thoại luyện tập</h2><button class="btn primary" id="playAll"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Nghe cả bài</button></div>
+  <div class="sec-head"><h2>Hội thoại luyện tập</h2><button class="btn" id="noiVai" aria-pressed="true" hidden title="Cảnh sát và công dân mỗi bên một màu, một kiểu chữ">🎭 Làm nổi vai</button><button class="btn primary" id="playAll"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Nghe cả bài</button></div>
   ${B.hoithoai.gioithieu ? `<p class="sub" style="margin-bottom:12px">${md(B.hoithoai.gioithieu)}</p>` : ''}
   ${khung('hoi-thoai')}
   <div class="dlg" id="dlg"></div>
@@ -168,6 +168,8 @@ document.addEventListener('click', e => {
   if (b) { e.stopPropagation(); speak(b.dataset.say); }
 });
 const sayBtn = t => `<button class="say" data-say="${esc(t)}" aria-label="Nghe">${SPK}</button>`;
+const TEN_VAI = {canhsat: 'Cảnh sát', congdan: 'Công dân'};
+const vaiCua = w => /警|公安|官|cảnh sát|công an|police/i.test(w) ? 'canhsat' : /公民|群众|市民|民|công dân|người dân/i.test(w) ? 'congdan' : '';
 
 /* ---------- bài giảng: đọc như bài viết trên web, mục lục ở đầu, ảnh chụp slide gốc gập lại ở cuối mỗi mục ---------- */
 if (BG.length) {
@@ -223,7 +225,7 @@ const ST = B.cachviet || {};
 if (V.length) {
   $('#cards').innerHTML = V.map((v, i) => {
     const chars = [...v.w];
-    const gifs = [...new Set(chars)].filter(c => ST[c]);
+    const gifs = [...new Set(chars)].filter(c => /[㐀-鿿]/.test(c));   // chữ có GIF thì dùng GIF, không thì tự vẽ nét
     const ex = v.ex || [];
     return `<article class="card" data-g="${esc(v.g)}" data-i="${i}">
       <div class="card-top">
@@ -237,7 +239,8 @@ if (V.length) {
         <button class="btn" data-say="${esc(v.w)}">${SPK}Nghe</button>
         ${gifs.length ? `<button class="btn tgl-stroke" aria-expanded="false">${PEN}Cách viết</button>` : ''}
       </div>
-      ${gifs.length ? `<div class="strokes" hidden>${gifs.map(c => `<img alt="Thứ tự nét chữ ${esc(c)}" data-src="${anh(ST[c])}">`).join('')}</div>` : ''}
+      ${gifs.length ? `<div class="strokes" hidden>${gifs.map(c => ST[c] ? `<img alt="Thứ tự nét chữ ${esc(c)}" data-src="${anh(ST[c])}">`
+        : `<span class="ve-chu" data-c="${esc(c)}" role="img" aria-label="Thứ tự nét chữ ${esc(c)}"></span>`).join('')}</div>` : ''}
     </article>`;
   }).join('');
   $('#cards').addEventListener('click', e => {
@@ -245,7 +248,7 @@ if (V.length) {
     const t = e.target.closest('.tgl-stroke');
     if (t) {
       const box = $('.strokes', card); const open = box.hidden;
-      if (open) $$('img', box).forEach(im => { if (!im.src) im.src = im.dataset.src; });
+      if (open) { $$('img', box).forEach(im => { if (!im.src) im.src = im.dataset.src; }); veNet(box); }
       box.hidden = !open; t.setAttribute('aria-expanded', open);
       return;
     }
@@ -271,12 +274,37 @@ if (G.length) $('#gram').innerHTML = G.map(g => `<div class="g">
   ${g.note ? `<p class="note">${md(g.note)}</p>` : ''}
   ${g.gif ? `<img class="anh-chu" src="${anh(g.gif)}" alt="Ảnh động ${esc(g.zh)}" loading="lazy">` : ''}</div>`).join('');
 
+/* Thứ tự nét tự vẽ (Hanzi Writer, dữ liệu nét lấy từ mạng) cho chữ chưa có ảnh GIF: vẽ lần lượt từng nét, lặp lại. */
+const HW_LIB = 'https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js';
+let hwTai = null;
+const taiHW = () => hwTai ||= new Promise((ok, loi) => {
+  const s = document.createElement('script'); s.src = HW_LIB; s.onload = ok; s.onerror = () => { hwTai = null; loi(); }; document.head.appendChild(s);
+});
+async function veNet(box) {
+  const ds = $$('.ve-chu:not([data-xong])', box); if (!ds.length) return;
+  try { await taiHW(); } catch { ds.forEach(o => o.textContent = o.dataset.c); return; }
+  const mau = getComputedStyle(document.documentElement).getPropertyValue('--pri').trim() || '#16765b';
+  ds.forEach(o => {
+    o.dataset.xong = 1;
+    HanziWriter.create(o, o.dataset.c, {width: 110, height: 110, padding: 6, strokeColor: mau, radicalColor: mau, outlineColor: '#ddd',
+      strokeAnimationSpeed: 1, delayBetweenStrokes: 250, delayBetweenLoops: 1500, onLoadCharDataError: () => { o.textContent = o.dataset.c; }})
+      .loopCharacterAnimation();
+  });
+}
+
 /* ---------- dialogue ---------- */
 if (D.length) {
   const who = [...new Set(D.map(d => d[0]))];
+  // Làm nổi vai: cảnh sát và công dân mỗi bên một màu, một kiểu chữ. Nút bật / tắt, nhớ lựa chọn trên máy.
+  const KEY_VAI = 'noi-vai';
+  let noiVai = true; try { noiVai = localStorage.getItem(KEY_VAI) !== '0'; } catch {}
+  const vb = $('#noiVai'); vb.hidden = !D.some(d => vaiCua(d[0]));
+  const datVai = () => { $('#dlg').classList.toggle('noi-vai', noiVai); vb.setAttribute('aria-pressed', noiVai); };
+  vb.addEventListener('click', () => { noiVai = !noiVai; try { localStorage.setItem(KEY_VAI, noiVai ? '1' : '0'); } catch {} datVai(); });
+  setTimeout(datVai);
   // Tình huống không có dòng tiêu đề trong hội thoại thì khung ảnh của nó nằm ở đầu hội thoại.
-  $('#dlg').innerHTML = ['th-1', 'th-2'].filter(vt => !who.includes('TH' + vt.slice(-1))).map(khung).join('') + D.map(([w, z, p, v, gif]) => `${/^TH\d$/.test(w) ? khung('th-' + w[2]) : ''}<div class="line ${who.indexOf(w) % 2 ? 'b' : 'a'}">
-    <span class="who">${esc(w)}</span>
+  $('#dlg').innerHTML = ['th-1', 'th-2'].filter(vt => !who.includes('TH' + vt.slice(-1))).map(khung).join('') + D.map(([w, z, p, v, gif]) => `${/^TH\d$/.test(w) ? khung('th-' + w[2]) : ''}<div class="line ${who.indexOf(w) % 2 ? 'b' : 'a'}" data-vai="${vaiCua(w)}">
+    <span class="who">${esc(w)}${TEN_VAI[vaiCua(w)] ? `<small>${TEN_VAI[vaiCua(w)]}</small>` : ''}</span>
     <div><div class="zh">${esc(z)}</div><div class="p">${esc(p)}</div><div class="vi">${esc(v)}</div>${gif ? `<img class="anh-chu" src="${anh(gif)}" alt="Ảnh động" loading="lazy">` : ''}</div>
     ${sayBtn(z)}</div>`).join('');
   $('#playAll').addEventListener('click', () => {
