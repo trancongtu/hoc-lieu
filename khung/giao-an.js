@@ -30,7 +30,8 @@ const TR = coGT && B.hienTrang !== false && B.trang || [];   // ảnh chụp t�
 const BG = [];
 TR.forEach((ten, i) => {
   const nd = (B.noidung || [])[i], coChu = nd && nd.khoi.some(k => k.t === 'p' || k.t === 'bang');
-  const khoi = (coChu ? nd.khoi : [{t: 'chup'}]).map(k => k.t === 'goc' || k.t === 'chup' ? {...k, ten} : k);
+  // _p, _j: trang và vị trí khối, để khung xem trước biết ảnh nào cần đổi / bỏ. Khối 'goc' đã cắt riêng vùng ảnh thì có tên ảnh riêng.
+  const khoi = (coChu ? nd.khoi : [{t: 'chup'}]).map((k, j) => ({...k, ...(k.t === 'goc' || k.t === 'chup' ? {ten: k.ten || ten} : {}), _p: i, _j: coChu ? j : -1}));
   khoi.ten = ten;
   const tieude = coChu && nd.tieude || '', truoc = BG.at(-1);
   if (truoc && (!tieude || tieude === truoc.tieude)) truoc.phan.push(khoi);
@@ -51,6 +52,14 @@ const QRT = XUAT === 'full' ? [['', 'Cả bài', ''], ...(EX.length ? [['#bai-ta
   : TRANG === 'baitap' ? [['', 'Bài tập', '-bai-tap'], ['./', 'Giáo trình', '']]
   : [['', 'Giáo trình', ''], ...((B.baitap || []).length ? [['bai-tap.html', 'Bài tập', '-bai-tap']] : [])];
 
+/* Khung ảnh minh họa theo vị trí: khung bị bỏ không hiện; khung chưa có ảnh chỉ hiện khi xem trước trong trang soạn bài. */
+const MH = (coGT ? B.minhhoa || [] : []).filter(x => !x.bo && (x.anh || preview));
+const khung = vt => MH.filter(x => x.vitri === vt).map(x => x.loai === 'am'
+  ? (x.anh ? `<figure class="khung-am"><span aria-hidden="true">🔊</span><audio controls preload="none" src="${anh(x.anh)}"></audio></figure>`
+    : '<figure class="khung-anh trong"><figcaption>Khung âm thanh: chưa có file</figcaption></figure>')
+  : x.anh ? `<figure class="khung-anh"><img src="${anh(x.anh)}" alt="${x.loai === 'gif' ? 'Ảnh động' : 'Ảnh minh họa'}" loading="lazy"></figure>`
+  : `<figure class="khung-anh trong"><figcaption>Khung ${x.loai === 'gif' ? 'ảnh động' : 'ảnh'}: chưa có ảnh</figcaption></figure>`).join('');
+const BIA_WEB = B.anhbia === '@web';
 document.body.innerHTML = `
 <header class="hero"><div class="wrap">
   <div class="topbar">
@@ -65,11 +74,13 @@ document.body.innerHTML = `
       ${B.gioithieu ? `<p class="lead">${md(B.gioithieu)}</p>` : ''}
       <div class="meta">${chips.map(c => `<span class="chip">${c}</span>`).join('')}</div>
     </div>
-    ${B.anhbia ? `<figure style="margin:0"><img src="${anh(B.anhbia)}" alt="${esc(B.nghia || B.ten)}"></figure>` : ''}
+    ${BIA_WEB ? `<figure class="bia-web" aria-hidden="true"><span class="bia-o">第</span><span class="bia-o">${esc(B.so)}</span><span class="bia-o">课</span></figure>`
+      : B.anhbia ? `<figure style="margin:0"><img src="${anh(B.anhbia)}" alt="${esc(B.nghia || B.ten)}"></figure>` : ''}
   </div>
 </div></header>
 <nav class="tabs" aria-label="Các phần của bài học"><div class="wrap">${secs.map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}${sang}</div></nav>
 <main>
+${khung('dau') ? `<section class="mh-dau"><div class="wrap">${khung('dau')}</div></section>` : ''}
 ${hasGoals ? `<section id="muc-tieu"><div class="wrap">
   <div class="sec-head"><h2>Mục tiêu bài học</h2><span class="zh">学习目标</span></div>
   <div class="goals">${[['kienthuc', 'Kiến thức'], ['nangluc', 'Năng lực'], ['phamchat', 'Phẩm chất']].filter(([k]) => (mt[k] || []).length)
@@ -83,6 +94,7 @@ ${TR.length ? `<section id="bai-giang"><div class="wrap">
 </div></section>` : ''}
 ${V.length ? `<section id="tu-moi"><div class="wrap">
   <div class="sec-head"><h2>Từ mới</h2><span class="zh">生词</span></div>
+  ${khung('tu-moi')}
   <div class="toolbar" role="group" aria-label="Lọc từ mới">
     ${groups.length > 1 ? `<button class="filter" data-g="" aria-pressed="true">Tất cả</button>${groups.map(g => `<button class="filter" data-g="${esc(g)}" aria-pressed="false">${esc(g)}</button>`).join('')}` : ''}
     <label class="switch"><input type="checkbox" id="hideMean"> Ẩn nghĩa để tự kiểm tra</label>
@@ -91,15 +103,18 @@ ${V.length ? `<section id="tu-moi"><div class="wrap">
 </div></section>` : ''}
 ${G.length ? `<section id="ngu-phap"><div class="wrap">
   <div class="sec-head"><h2>Ngữ pháp và mẫu câu</h2><span class="zh">语法</span></div>
+  ${khung('ngu-phap')}
   <div class="gram" id="gram"></div>
 </div></section>` : ''}
 ${D.length ? `<section id="hoi-thoai"><div class="wrap">
   <div class="sec-head"><h2>Hội thoại luyện tập</h2><button class="btn primary" id="playAll"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Nghe cả bài</button></div>
   ${B.hoithoai.gioithieu ? `<p class="sub" style="margin-bottom:12px">${md(B.hoithoai.gioithieu)}</p>` : ''}
+  ${khung('hoi-thoai')}
   <div class="dlg" id="dlg"></div>
 </div></section>` : ''}
 ${EX.length ? `<section id="bai-tap"><div class="wrap">
   <div class="sec-head"><h2>Bài tập</h2><span class="zh">练习</span></div>
+  ${khung('bai-tap')}
   <div id="exs"></div>
 </div></section>` : ''}
 </main>
@@ -159,7 +174,9 @@ if (BG.length) {
   const HAN = /[㐀-鿿]/, doc = s => (s.replace(/\*\*/g, '').match(/[㐀-鿿，。？！、]+/g) || []).join('');
   const dong = s => md(s).replace(/\n/g, '<br>').replace(/[㐀-鿿][㐀-鿿，。？！、 ]*/g, m => `<span class="zh">${m}</span>`)
     + (HAN.test(s) ? sayBtn(doc(s)) : '');
-  const hinh = (n, alt, cls) => `<figure class="${cls}"><img src="${anh(n)}" alt="${esc(alt)}" loading="lazy"></figure>`;
+  // Ở khung xem trước, mỗi ảnh có nút Đổi ảnh / Bỏ ảnh (trang soạn bài nhận lệnh qua postMessage).
+  const nut = k => preview && k ? `<span class="sua-anh"><button type="button" data-doi-anh="${k._p},${k._j}">Đổi ảnh</button>${k._j >= 0 ? `<button type="button" data-bo-anh="${k._p},${k._j}">Bỏ ảnh</button>` : ''}</span>` : '';
+  const hinh = (n, alt, cls, k) => `<figure class="${cls}${nut(k) ? ' co-sua' : ''}"><img src="${anh(n)}" alt="${esc(alt)}" loading="lazy">${nut(k)}</figure>`;
   const than = ks => {
     let h = '';
     for (let i = 0; i < ks.length;) {
@@ -171,12 +188,16 @@ if (BG.length) {
       }
       if (k.t === 'anh') {   // ảnh liền nhau xếp cạnh nhau, giữ tỉ lệ to nhỏ như trên slide
         let a = '';
-        for (; i < ks.length && ks[i].t === 'anh'; i++) a += `<img src="${anh(ks[i].ten)}" alt="" loading="lazy" style="width:${Math.max(18, Math.min(100, Math.round(ks[i].w * 100)))}%">`;
+        for (; i < ks.length && ks[i].t === 'anh'; i++) {
+          const rong = `width:${Math.max(18, Math.min(100, Math.round((ks[i].w || 1) * 100)))}%`;
+          a += preview ? `<figure class="co-sua" style="${rong}"><img src="${anh(ks[i].ten)}" alt="" loading="lazy">${nut(ks[i])}</figure>`
+            : `<img src="${anh(ks[i].ten)}" alt="" loading="lazy" style="${rong}">`;
+        }
         h += `<div class="bg-anh">${a}</div>`; continue;
       }
       if (k.t === 'p') h += `<p>${dong(k.s)}</p>`;
       else if (k.t === 'bang') h += `<div class="bg-bang"><table>${k.hang.map(r => `<tr>${r.map(c => `<td>${dong(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
-      else if (k.t === 'chup') h += hinh(k.ten, 'Trang slide', 'bg-chup');
+      else if (k.t === 'chup') h += hinh(k.ten, 'Trang slide', 'bg-chup', k);
       i++;
     }
     return h;
@@ -189,8 +210,8 @@ if (BG.length) {
       return `<article class="bg-muc" id="bg-${i + 1}">
         ${m.tieude ? `<h3>${dong(m.tieude)}</h3>` : ''}
         ${m.phan.map(ks => {
-          const goc = ks.find(k => k.t === 'goc');
-          return `<div class="bg-than${goc ? ' co-hinh' : ''}"><div class="bg-chu">${than(ks)}</div>${goc ? hinh(goc.ten, 'Hình trong trang', 'bg-hinh') : ''}</div>`;
+          const goc = ks.filter(k => k.t === 'goc');
+          return `<div class="bg-than${goc.length ? ' co-hinh' : ''}"><div class="bg-chu">${than(ks)}</div>${goc.length ? `<div class="bg-hinhs">${goc.map(k => hinh(k.ten, 'Hình trong trang', 'bg-hinh', k)).join('')}</div>` : ''}</div>`;
         }).join('')}
         ${an.length ? `<details class="bg-goc"><summary>Xem slide gốc${an.length > 1 ? ` (${an.length} trang)` : ''}</summary>${an.map(n => hinh(n, 'Slide gốc', '')).join('')}</details>` : ''}
       </article>`;
@@ -247,14 +268,16 @@ if (G.length) $('#gram').innerHTML = G.map(g => `<div class="g">
   <h3><span class="zh">${esc(g.zh)}</span><span>${esc(g.vi)}</span></h3>
   ${g.pat ? `<div class="pattern">${esc(g.pat)}</div>` : ''}
   <ul>${(g.ex || []).map(([z, v]) => `<li><span class="zh">${esc(z)}</span>${sayBtn(z)}<span class="vi">${esc(v)}</span></li>`).join('')}</ul>
-  ${g.note ? `<p class="note">${md(g.note)}</p>` : ''}</div>`).join('');
+  ${g.note ? `<p class="note">${md(g.note)}</p>` : ''}
+  ${g.gif ? `<img class="anh-chu" src="${anh(g.gif)}" alt="Ảnh động ${esc(g.zh)}" loading="lazy">` : ''}</div>`).join('');
 
 /* ---------- dialogue ---------- */
 if (D.length) {
   const who = [...new Set(D.map(d => d[0]))];
-  $('#dlg').innerHTML = D.map(([w, z, p, v]) => `<div class="line ${who.indexOf(w) % 2 ? 'b' : 'a'}">
+  // Tình huống không có dòng tiêu đề trong hội thoại thì khung ảnh của nó nằm ở đầu hội thoại.
+  $('#dlg').innerHTML = ['th-1', 'th-2'].filter(vt => !who.includes('TH' + vt.slice(-1))).map(khung).join('') + D.map(([w, z, p, v, gif]) => `${/^TH\d$/.test(w) ? khung('th-' + w[2]) : ''}<div class="line ${who.indexOf(w) % 2 ? 'b' : 'a'}">
     <span class="who">${esc(w)}</span>
-    <div><div class="zh">${esc(z)}</div><div class="p">${esc(p)}</div><div class="vi">${esc(v)}</div></div>
+    <div><div class="zh">${esc(z)}</div><div class="p">${esc(p)}</div><div class="vi">${esc(v)}</div>${gif ? `<img class="anh-chu" src="${anh(gif)}" alt="Ảnh động" loading="lazy">` : ''}</div>
     ${sayBtn(z)}</div>`).join('');
   $('#playAll').addEventListener('click', () => {
     if (!('speechSynthesis' in window)) { toast('Thiết bị này không hỗ trợ đọc tiếng Trung.'); return; }
@@ -502,6 +525,8 @@ $('#qrCopy').addEventListener('click', async () => {
 // Khung xem trước (srcdoc) lấy địa chỉ của trang soạn bài làm gốc: link "#tu-moi" sẽ mở cả trang soạn bài vào khung.
 // Nên ở đó chỉ cuộn tới mục, không chuyển trang.
 if (preview) document.addEventListener('click', e => {
+  const d = e.target.closest('[data-doi-anh],[data-bo-anh]');
+  if (d) { const [p, j] = (d.dataset.doiAnh || d.dataset.boAnh).split(',').map(Number); parent.postMessage({anhBG: d.dataset.doiAnh ? 'doi' : 'bo', p, j}, '*'); return; }
   const a = e.target.closest('a[href^="#"]'); if (!a) return;
   e.preventDefault();
   const t = document.getElementById(a.getAttribute('href').slice(1));

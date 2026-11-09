@@ -269,6 +269,17 @@ details.vd .in{padding:0 10px 10px;display:grid;gap:8px}
 .add-ex button b{color:var(--jade)}
 .add-ex .mk-sent,.add-ex .mk-tok,.add-ex .mk-opts{pointer-events:none}
 
+.mh{display:grid;grid-template-columns:96px minmax(120px,1fr) auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.mh .f{margin:0}.mh.bo .mh-anh,.mh.bo .f,.mh.bo [data-mh="tai"]{opacity:.45}
+.mh-anh{height:64px;border:1.5px dashed var(--line);border-radius:8px;display:grid;place-items:center;font-size:.72rem;color:var(--muted);text-align:center;overflow:hidden}
+.mh-anh img{width:100%;height:100%;object-fit:cover}
+.mh-nghe{border:0;background:none;font:inherit;font-size:.75rem;color:var(--ink);cursor:pointer;padding:4px}
+.mh-nut{display:flex;flex-wrap:wrap;gap:8px}.mh-nut [aria-pressed="true"]{outline:2px solid var(--jade);outline-offset:1px}
+.mh-menu{margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.mh-menu .hint{margin:0 0 8px;font-weight:600;color:var(--ink)}.mh-vt{display:flex;flex-wrap:wrap;gap:6px}
+.g-am{display:grid;place-items:center;aspect-ratio:1;font-size:2rem}.mh-bo{display:flex;gap:6px;align-items:center;margin:0}
+.gif-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}.gif-h .zh{flex:1;min-width:120px}.gif-h img{height:44px;border-radius:6px}
+@media (max-width:560px){.mh{grid-template-columns:72px 1fr}}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
 .gallery button{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:4px;display:grid;gap:2px;font-size:.72rem;color:var(--muted);text-align:center;overflow-wrap:anywhere}
 .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;background:#fff}
@@ -492,6 +503,7 @@ dialog.qr .seg{margin:12px 0 0}
       <div class="cols"><span class="req">Chữ Hán</span><i>|</i><span class="req">Pinyin</span><i>|</i><span class="req">Từ loại</span><i>|</i><span class="req">Nghĩa</span><i>|</i><span>Nhóm</span><i>|</i><span>Câu ví dụ</span><i>|</i><span>Pinyin ví dụ</span><i>|</i><span>Nghĩa ví dụ</span><i>|</i><span>Ảnh</span><em>ô viền đậm là bắt buộc</em></div>
       <textarea id="tumoi" style="min-height:200px" aria-label="Danh sách từ mới" placeholder="爸爸 | bàba | danh từ | bố, ba | Gia đình"></textarea>
       <div class="warns" id="w-tumoi"></div>
+      <details class="vd" data-gif="tumoi"><summary>Ảnh động (GIF) cho từng từ</summary><div class="in"></div></details>
       <details class="vd"><summary>Xem ví dụ một dòng từ mới</summary><div class="in">
         <div class="trio two">
           <figure><figcaption>Viết trong ô (một dòng)</figcaption><pre class="code">爸爸 <b>|</b> bàba <b>|</b> danh từ <b>|</b> bố, ba <b>|</b> Gia đình <b>|</b> 我爸爸是老师。 <b>|</b> Wǒ bàba shì lǎoshī. <b>|</b> Bố tôi là giáo viên. <b>|</b> s02_1.jpg</pre>
@@ -516,6 +528,7 @@ dialog.qr .seg{margin:12px 0 0}
       <div class="cols"><span class="req">Điểm ngữ pháp</span><i>|</i><span class="req">Ý nghĩa</span><i>|</i><span class="req">Mẫu câu</span><i>|</i><span>Câu = Nghĩa; Câu = Nghĩa</span><i>|</i><span>Ghi chú</span></div>
       <textarea id="nguphap" style="min-height:160px" aria-label="Ngữ pháp"></textarea>
       <div class="warns" id="w-nguphap"></div>
+      <details class="vd" data-gif="nguphap"><summary>Ảnh động (GIF) cho từng điểm ngữ pháp</summary><div class="in"></div></details>
       <details class="vd"><summary>Xem ví dụ</summary><div class="in">
         <div class="trio two">
           <figure><figcaption>Viết trong ô (một dòng)</figcaption><pre class="code">几口人 <b>|</b> Hỏi số người trong gia đình <b>|</b> 你家有几口人？ → 我家有 + số + 口人。 <b>|</b> 你家有几口人？ = Nhà bạn có mấy người?; 我家有四口人。 = Nhà tôi có bốn người. <b>|</b> **几** hỏi số lượng nhỏ.</pre></figure>
@@ -537,6 +550,7 @@ dialog.qr .seg{margin:12px 0 0}
       <div class="cols"><span class="req">Người nói</span><i>|</i><span class="req">Câu chữ Hán</span><i>|</i><span>Pinyin</span><i>|</i><span>Nghĩa</span></div>
       <textarea id="hoithoai" style="min-height:160px" aria-label="Hội thoại"></textarea>
       <div class="warns" id="w-hoithoai"></div>
+      <details class="vd" data-gif="hoithoai"><summary>Ảnh động (GIF) cho từng lượt thoại</summary><div class="in"></div></details>
       <details class="vd"><summary>Xem ví dụ</summary><div class="in">
         <div class="trio two">
           <figure><figcaption>Viết trong ô</figcaption><pre class="code">A <b>|</b> 你家有几口人？ <b>|</b> Nǐ jiā yǒu jǐ kǒu rén? <b>|</b> Nhà bạn có mấy người?
@@ -562,8 +576,17 @@ B <b>|</b> 我家有五口人。 <b>|</b> Wǒ jiā yǒu wǔ kǒu rén. <b>|</b> 
   </details>
 
   <details class="box" id="box-anh">
-    <summary><h2>9. Ảnh</h2><span class="cnt" id="c-anh"></span></summary>
+    <summary><h2>9. Ảnh, âm thanh</h2><span class="cnt" id="c-anh"></span></summary>
     <div class="body">
+      <p class="hint" style="font-weight:600;color:var(--ink)">Chèn ảnh, ảnh động, âm thanh</p>
+      <p class="hint">Bấm nút, chọn vị trí trong bài, rồi chọn file. Đổi được vị trí và file ở danh sách. Tích “Bỏ” thì không hiện; khung chưa có file chỉ hiện ở xem trước, học sinh không thấy.</p>
+      <div id="mhDs"></div>
+      <div id="mhChen">
+        <div class="mh-nut"><button type="button" class="btn sm" data-chen="anh" aria-pressed="false">🖼️ Chèn ảnh</button><button type="button" class="btn sm" data-chen="gif" aria-pressed="false">🎞️ Chèn ảnh động GIF</button><button type="button" class="btn sm" data-chen="am" aria-pressed="false">🔊 Chèn âm thanh</button></div>
+        <div id="mhViTri" class="mh-menu" hidden></div>
+      </div>
+      <input type="file" id="fileMh" accept="image/*" hidden><input type="file" id="fileGif" accept="image/gif" hidden>
+      <p class="hint" style="font-weight:600;color:var(--ink)">Tất cả ảnh</p>
       <p class="hint">Bấm vào ảnh để chép tên, rồi dán vào cột “Ảnh” của từ mới hoặc mục Cách viết. Ảnh có viền xanh là ảnh đang dùng; chỉ ảnh đang dùng mới được lưu.</p>
       <div class="gallery" id="gallery"></div>
     </div>

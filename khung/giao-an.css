@@ -74,6 +74,14 @@ button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible
 .bg-bang table{border-collapse:collapse}
 .bg-bang td{border:1px solid var(--line);padding:6px 12px;vertical-align:top}
 .bg-bang tr:first-child td{background:var(--pri-soft);font-weight:600}
+.bg-hinhs{display:grid;gap:12px}
+.bg-anh figure{margin:0}
+.bg-anh figure img{width:100%}
+.co-sua{position:relative}
+.sua-anh{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+.sua-anh button{font:600 .8rem/1 inherit;font-family:inherit;padding:6px 10px;border-radius:6px;border:1px solid rgb(0 0 0 / .15);background:rgb(255 255 255 / .92);color:#1a1a1a;cursor:pointer;box-shadow:0 1px 4px rgb(0 0 0 / .15)}
+.sua-anh button:hover{background:#fff}
+.sua-anh [data-bo-anh]{color:#b42318}
 .bg-goc{font-size:.9rem;color:var(--muted)}
 .bg-goc summary{cursor:pointer;width:fit-content}
 .bg-goc[open]{display:grid;gap:10px}
@@ -90,6 +98,14 @@ button:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible
 .hero .py-big{font-size:1.15rem;color:var(--muted);margin-top:4px}
 .hero .lead{margin-top:14px;max-width:46ch}
 .hero img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:var(--r);display:block}
+.bia-web{margin:0;aspect-ratio:16/10;border-radius:var(--r);display:flex;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,12px);padding:16px;background:var(--pri)}
+.bia-o{display:grid;place-items:center;width:clamp(56px,10vw,96px);aspect-ratio:1;background-color:var(--surface);color:var(--pri);font-family:var(--f-han);font-size:clamp(1.9rem,5.5vw,3.3rem);font-weight:700;line-height:1;border:1px solid var(--grid);background-image:linear-gradient(var(--grid),var(--grid)),linear-gradient(var(--grid),var(--grid));background-size:100% 1px,1px 100%;background-position:center;background-repeat:no-repeat}
+.khung-anh{margin:0 0 16px}.khung-anh img{display:block;max-width:100%;max-height:420px;margin-inline:auto;border-radius:var(--r)}
+.khung-am{margin:0 0 16px;display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface,#fff);max-width:520px}
+.khung-am span{font-size:1.4rem}.khung-am audio{flex:1;min-width:0;height:40px}
+.khung-anh.trong{min-height:150px;display:grid;place-items:center;border:2px dashed var(--line);border-radius:var(--r);color:var(--muted);font-size:.9rem}
+#dlg .khung-anh{margin-top:14px}.anh-chu{display:block;max-width:min(100%,280px);margin-top:8px;border-radius:8px}
+.mh-dau{padding-bottom:0}
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.85rem}
 html[data-mau="son"] .hero h1{color:var(--pri)}
